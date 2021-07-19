@@ -106,12 +106,32 @@ class MomentTensor(RockoMT):
     
 
     def __init__(self,mw=None,strike=None,dip=None,rake=None):
+        self._arg_strike = strike
+        self._arg_dip    = dip
+        self._arg_rake   = rake
+        self._arg_Mw     = mw
         m0 = pmt.magnitude_to_moment(mw)
         super(MomentTensor, self).__init__(strike=strike, dip=dip, rake=rake, scalar_moment=m0)
 
 
     ######################################
     ## Accessors
+
+    @property
+    def strike(self): # the strike as given by argument
+        return self._arg_strike
+
+    @property
+    def dip(self): # the dip as given by argument
+        return self._arg_dip
+
+    @property
+    def rake(self): # the rake as given by argument
+        return self._arg_rake
+
+    @property
+    def Mw(self): # the rake as given by argument
+        return self._arg_Mw
     
 
     ######################
