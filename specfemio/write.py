@@ -70,4 +70,4 @@ def write_stations(fqp,l_stations,fname='STATIONS'):
     fqp_file, fqp_header = _get_file_header_paths(fqp,fname)
 
     _write_file(fqp_file,str_stations)
-    _write_header(fqp_header,cmts)
+    _write_header(fqp_header,l_stations)

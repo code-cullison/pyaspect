@@ -9,7 +9,7 @@ from pyaspect.specfemio.utils import _get_file_header_paths
 #
 ################################################################################
 
-def _read_headers(fqpame):
+def _read_headers(fqpname):
 
     f = open(fqpname, 'rb')
     headers = pickle.load(f)

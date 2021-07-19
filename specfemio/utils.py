@@ -83,7 +83,7 @@ def station_to_str(s):
 def station_list_to_str(l_stations):
 
     str_stations = ''
-    for i in range(len(stations)):
+    for i in range(len(l_stations)):
         str_stations += station_to_str(l_stations[i])
 
     return str_stations
