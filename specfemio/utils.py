@@ -196,3 +196,67 @@ def make_station_cross_group_list(stations,delta):
 def make_station_half_cross_group_list(stations,delta):
     return make_station_group_list(stations,delta,False)
 
+
+
+################################################################################
+#
+# Functions for getting coordinates
+#
+################################################################################
+
+
+def prune_header_list(l_headers,key,val):
+
+    if key not in l_headers[0].keys():
+        raise KeyError(f'field: {key}, does not exist')
+
+    pruned = []
+    
+    for h in l_headers:
+        if h[key] != val:
+            pruned.append(h)
+
+    return pruned
+
+
+def get_xyz_coords_from_header(h,depth_key=None):
+        return np.array([h.lon_xc,h.lat_yc,h[depth_key]])
+
+
+def get_xyz_coords_from_station(s):
+    return get_xyz_coords_from_header(s,depth_key='burial')
+
+
+def get_xyz_coords_from_solution(s):
+    return get_xyz_coords_from_header(s,depth_key='depth')
+
+
+def get_xyz_coords_from_header_list(l_headers,depth_key=None):
+
+    xyz = np.zeros((len(l_headers),3))
+    
+    for i in range(len(l_headers)):
+        h = l_headers[i]
+        xyz[i,:] = get_xyz_coords_from_header(h,depth_key)[:]
+
+    return xyz
+
+
+def get_xyz_coords_from_station_list(l_stations):
+    return get_xyz_coords_from_header_list(l_stations,depth_key='burial')
+
+
+def get_xyz_coords_from_solution_list(l_stations):
+    return get_xyz_coords_from_header_list(l_stations,depth_key='depth')
+
+
+def get_xyz_coords_from_headers_except(l_headers,key=None,val=None,depth_key=None):
+
+    p_headers = prune_header_list(l_headers,key,val)
+
+    return get_xyz_coords_from_header_list(p_headers,depth_key)
+
+
+def get_xyz_coords_from_station_list_except(l_stations,key=None,val=None):
+    return get_xyz_coords_from_headers_except(l_stations,key=key,val=val,depth_key='burial')
+
