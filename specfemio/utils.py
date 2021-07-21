@@ -128,6 +128,7 @@ def make_station_half_cross_members(station=None,delta=None):
 
     return station_members
 
+
 def make_station_cross_members(station=None,delta=None):
 
     
@@ -173,28 +174,47 @@ def make_station_half_cross_group(station=None,delta=None):
     return station_group
 
     
-def make_station_group_list(stations,delta,full_cross=True):
+def make_grouped_station_headers(stations,delta,full_cross=True):
     
     group_station_list = []
 
     if full_cross:
         for i in range(len(stations)):
             group_station = make_station_cross_group(station=stations[i],delta=delta)
-            group_station_list += group_station
+            #group_station_list += group_station
+            group_station_list.append(group_station)
     else:
         for i in range(len(stations)):
             group_station = make_station_half_cross_group(station=stations[i],delta=delta)
-            group_station_list += group_station
+            #group_station_list += group_station
+            group_station_list.append(group_station)
     
-    return list(set(group_station_list))
+    #return list(set(group_station_list))
+    return group_station_list
 
     
-def make_station_cross_group_list(stations,delta):
-    return make_station_group_list(stations,delta,True)
+def make_grouped_cross_station_headers(stations,delta):
+    return make_grouped_station_headers(stations,delta,True)
 
     
-def make_station_half_cross_group_list(stations,delta):
-    return make_station_group_list(stations,delta,False)
+def make_grouped_half_cross_station_headers(stations,delta):
+    return make_grouped_station_headers(stations,delta,False)
+
+
+def flatten_grouped_headers(l_group):
+    if not isinstance(l_group[0], list):
+        raise Exception('group list must be at least 2 dimensional')
+    return list(sum(l_group, []))
+
+
+def flatten_grouped_headers_unique(l_group):
+    return list(set(flatten_grouped_headers(l_group)))
+
+def is_grouped_headers(headers):
+    is_grouped = False
+    if isinstance(headers[0], list):
+        is_grouped = True
+    return is_grouped
 
 
 
