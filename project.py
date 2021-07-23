@@ -8,6 +8,8 @@ from functools import wraps
 from time import time
 from tqdm import tqdm
 
+from pyaspect.specfemio.headers import *
+
 # these are the same symbols at https://realpython.com/directory-tree-generator-python/
 # FIXME: to be used later for making the output cool
 PIPE = "│"
@@ -338,7 +340,46 @@ class MultiProject(object):
     # end class
             
 
-class BatchCMTProject(MultiProject):
+class BatchCMTProject(Project):
+    
+    def __init__(self,
+                 spec_fqp=None,
+                 pyutils_fqp=None,
+                 script_fqp=None,
+                 proj_path=None,
+                 records=None
+                 sub_proj_bname=None,
+                 ignore_spec_max=False):
+
+        
+        self.bmt_lol = bmt_lol
+
+
+        #number of sources per event dir
+        self.sbsize  = sbsize
+        if not isinstance(sbsize,int):
+            raise TypeError('sbsize must be an int type')
+        
+        if sbsize <= 0:
+            raise TypeError('sbsize must be a positive integer g.t. zero')
+            
+
+        #create dir list for MultiProject super()
+        list_ndpp = [int(len(mtl)) for mtl in bmt_lol]
+
+        super(BatchCMTProject,self).__init__(spec_fqp=spec_fqp,
+                                             pyutils_fqp=pyutils_fqp,
+                                             script_fqp=script_fqp,
+                                             proj_path=proj_path,
+                                             sub_proj_bname=sub_proj_bname,
+                                             list_ndpp=list_ndpp,
+                                             fwd_only=True,
+                                             ignore_spec_max=ignore_spec_max)
+
+        self.total_events = self.num_event_dir*self.sbsize
+            
+
+class BatchCMTMultiProject(MultiProject):
     
     def __init__(self,
                  spec_fqp=None,
@@ -372,7 +413,7 @@ class BatchCMTProject(MultiProject):
         #create dir list for MultiProject super()
         list_ndpp = [int(len(mtl)) for mtl in bmt_lol]
 
-        super(BatchCMTProject,self).__init__(spec_fqp=spec_fqp,
+        super(BatchCMTMultiProject,self).__init__(spec_fqp=spec_fqp,
                                              pyutils_fqp=pyutils_fqp,
                                              script_fqp=script_fqp,
                                              proj_path=proj_path,
