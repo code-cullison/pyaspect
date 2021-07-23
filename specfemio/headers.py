@@ -1,23 +1,17 @@
 import numpy as np
 
-
 ################################################################################
 #
 # General Header Class for SPECFEM3D files (STATION and SOLUTIONS)
 #
 ################################################################################
 
+class Header(dict):
 
-class SpecHeader(dict):
-
-    def __init__(self,name=None,lat_yc=None,lon_xc=None,eid=0,sid=0):
-        super(SpecHeader,self).__init__()
+    def __init__(self,name=None):
+        super(Header,self).__init__()
 
         self['name']      = name
-        self['lat_yc']    = lat_yc
-        self['lon_xc']    = lon_xc
-        self['eid']       = eid
-        self['sid']       = sid
         self['comp_val']  = None
 
 
@@ -101,6 +95,41 @@ class SpecHeader(dict):
 
 
     @property
+    def comp_val(self):
+        return self['comp_val']
+
+    @comp_val.setter
+    def comp_val(self, value):
+        self['comp_val'] = value
+
+
+################################################################################
+#
+# Headers for SPECFEM3D files (STATION and SOLUTIONS)
+#
+################################################################################
+
+class CoordHeader(Header):
+
+    def __init__(self,name=None,lat_yc=None,lon_xc=None,depth=None):
+        super(CoordHeader,self).__init__(self,name=name)
+
+        self['lat_yc']    = lat_yc
+        self['lon_xc']    = lon_xc
+        self['depth']     = depth
+
+
+    def hash_val(self):
+        return np.sqrt(self.lon_xc**2 + self.lat_yc**2 + self.depth**2)
+
+    def comparator(self):
+        return self.comp_val
+
+    def eq_comparator(self):
+        return (self.lat_yc, self.lon_xc, self.depth)
+
+
+    @property
     def lat_yc(self):
         return self['lat_yc']
 
@@ -119,12 +148,58 @@ class SpecHeader(dict):
 
 
     @property
-    def eid(self):
-        return self['eid']
+    def depth(self):
+        return self['depth']
 
-    @eid.setter
-    def eid(self, value):
-        self['eid'] = value
+    @depth.setter
+    def depth(self, value):
+        self['depth'] = value
+
+
+
+################################################################################
+#
+# Headers for SPECFEM3D files (STATION and SOLUTIONS)
+#
+################################################################################
+
+
+class SpecHeader(CoordHeader):
+
+    def __init__(self,name=None,lat_yc=None,lon_xc=None,depth=None,proj_id=0,eid=0,sid=0):
+        super(SpecHeader,self).__init__(self,name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth)
+
+        self['proj_id']   = proj_id
+        self['eid']       = eid
+        self['sid']       = sid
+        self['comp_val']  = None
+
+
+    def hash_val(self):
+        sup_hv = super().hash_val()
+        return np.sqrt(self.proj_id**2 + self.eid**2 + self.sid**2 + sup_hv**2)
+        #return np.sqrt(self.proj_id**2 + self.eid**2 + self.sid**2 + self.lon_xc**2 + self.lat_yc**2 + self.depth**2)
+
+    # NOT NEEDED
+    #def eq_comparator(self):
+
+
+    @property
+    def proj_id(self):
+        return self['proj_id']
+
+    @proj_id.setter
+    def proj_id(self, value):
+        self['proj_id'] = value
+
+
+    @property
+    def proj_id(self):
+        return self['proj_id']
+
+    @proj_id.setter
+    def proj_id(self, value):
+        self['proj_id'] = value
 
 
     @property
@@ -134,15 +209,6 @@ class SpecHeader(dict):
     @sid.setter
     def sid(self, value):
         self['sid'] = value
-
-
-    @property
-    def comp_val(self):
-        return self['comp_val']
-
-    @comp_val.setter
-    def comp_val(self, value):
-        self['comp_val'] = value
 
 
 
@@ -157,24 +223,24 @@ class StationHeader(SpecHeader):
 
     def __init__(self,
                  name=None,
-                 network=None,
                  lat_yc=None,
                  lon_xc=None,
+                 depth=None,
                  elevation=None,
-                 burial=None,
+                 network=None,
+                 proj_id=0,
                  eid=0,
                  sid=0,
                  trid=0,
                  gid=0):
 
-        super(StationHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,eid=eid,sid=sid)
+        super(StationHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth,proj_id=proj_id,eid=eid,sid=sid)
 
         if 32 < len(name):
             raise Exception('Station.name cannot exceed 32 characters')
 
         self['network']   = network
         self['elevation'] = elevation
-        self['burial']    = burial
         self['trid']      = trid       # trace id
         self['gid']       = gid        # trace group id (trace decomp)
         self['data_fqdn'] = None
@@ -185,13 +251,11 @@ class StationHeader(SpecHeader):
 
 
     def hash_val(self):
-        return np.sqrt(self.lon_xc**2 + self.lat_yc**2 + self.burial**2)
-
-    def comparator(self):
-        return self.comp_val
+        sup_hv = super().hash_val()
+        return np.sqrt(self.elevation**2 + self.trid**2 + self.gid**2 + sup_hv**2)
 
     def eq_comparator(self):
-        return (self.lat_yc, self.lon_xc, self.elevation, self.burial)
+        return tuple(list(super().eq_comparator()) + [self.elevation])
 
 
     @property
@@ -210,15 +274,6 @@ class StationHeader(SpecHeader):
     @elevation.setter
     def elevation(self, value):
         self['elevation'] = value
-
-
-    @property
-    def burial(self):
-        return self['burial']
-
-    @burial.setter
-    def burial(self, value):
-        self['burial']  = value
 
 
     @property
@@ -258,29 +313,31 @@ class SolutionHeader(SpecHeader):
 
     def __init__(self,
                  name=None,
-                 tshift=None,
                  lat_yc=None,
                  lon_xc=None,
                  depth=None,
+                 tshift=None,
+                 date=None,
+                 ename=None,
+                 proj_id=0,
                  eid=0,
                  sid=0):
 
-        super(SolutionHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,eid=eid,sid=sid)
+        super(SolutionHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth,proj_id=proj_id,eid=eid,sid=sid)
 
-        self['tshift']    = tshift
-        self['depth']     = depth
+        self['tshift'] = tshift
+        self['date']   = date
+        self['ename']  = ename
 
         self.comp_val     = eid
 
 
     def hash_val(self):
-        return np.sqrt(self.lon_xc**2 + self.lat_yc**2 + self.depth**2 + self.tshift**2)
-
-    def comparator(self):
-        return self.comp_val
+        sup_hv = super().hash_val()
+        return np.sqrt(self.tshift**2 + sup_hv**2)
 
     def eq_comparator(self):
-        return (self.lat_yc, self.lon_xc, self.depth, self.tshift)
+        return tuple(list(super().eq_comparator()) + [self.tshift])
 
 
     @property
@@ -293,12 +350,22 @@ class SolutionHeader(SpecHeader):
 
 
     @property
-    def depth(self):
-        return self['depth']
+    def date(self):
+        return self['date']
 
-    @depth.setter
-    def depth(self, value):
-        self['depth'] = value
+    @date.setter
+    def date(self, value):
+        self['date'] = value
+
+
+    @property
+    def ename(self):
+        return self['ename']
+
+    @ename.setter
+    def ename(self, value):
+        self['ename'] = value
+
 
     @property
     def depth_km(self):
@@ -320,16 +387,18 @@ class ForceSolutionHeader(SolutionHeader):
     """
 
     def __init__(self,
-             date=None,
-             tshift=None,
-             f0=None,
+             ename=None,
              lat_yc=None,
              lon_xc=None,
              depth=None,
+             tshift=None,
+             date=None,
+             f0=None,
              factor_fs=None,
              comp_src_EX=None,
              comp_src_NY=None,
              comp_src_Zup=None,
+             proj_id=0,
              eid=0,
              sid=0):
 
@@ -339,15 +408,17 @@ class ForceSolutionHeader(SolutionHeader):
         hstr += f' {lat_yc} {lon_xc} {depth/1000} srcid_{eid}'
 
         super(ForceSolutionHeader,self).__init__(name=hstr,
-                                                 tshift=tshift,
                                                  lat_yc=lat_yc,
                                                  lon_xc=lon_xc,
                                                  depth=depth,
+                                                 tshift=tshift,
+                                                 date=date,
+                                                 ename=ename
+                                                 proj_id=proj_id,
                                                  eid=eid,
                                                  sid=sid)
 
 
-        self['date']         = date
         self['f0']           = f0
         self['factor_fs']    = factor_fs
         self['comp_src_EX']  = comp_src_EX
@@ -360,15 +431,6 @@ class ForceSolutionHeader(SolutionHeader):
 
     def eq_comparator(self):
         return tuple([*super().eq_comparator(), self.f0])
-
-
-    @property
-    def date(self):
-        return self['date']
-
-    @date.setter
-    def date(self, value):
-        self['date'] = value
 
 
     @property
@@ -435,14 +497,15 @@ class CMTSolutionHeader(SolutionHeader):
     """
 
     def __init__(self,
-                 date=None,
                  ename=None,
-                 tshift=None,
-                 hdur=None,
                  lat_yc=None,
                  lon_xc=None,
                  depth=None,
+                 tshift=None,
+                 date=None,
+                 hdur=None,
                  mt=None,
+                 proj_id=0,
                  eid=0,
                  sid=0):
 
@@ -451,20 +514,22 @@ class CMTSolutionHeader(SolutionHeader):
         if not isinstance(mt,MomentTensor):
             raise TypeError('mt must be of type pyaspect.moment_tensor.MomentTensor')
 
+
         hstr  = f'PDE {date.year} {date.month} {date.day} {date.hour} {date.minute} {date.second}'
         hstr += f' {lat_yc} {lon_xc} {depth/1000.0} {mt.Mw} 0 srcid_{eid}'
 
         super(CMTSolutionHeader,self).__init__(name=hstr,
-                                               tshift=tshift,
                                                lat_yc=lat_yc,
                                                lon_xc=lon_xc,
                                                depth=depth,
+                                               tshift=tshift,
+                                               date=date,
+                                               ename=ename,
+                                               proj_id=proj_id,
                                                eid=eid,
                                                sid=sid)
 
 
-        self['date']   = date
-        self['ename']  = ename
         self['hdur']   = hdur
         self['strike'] = mt.strike
         self['dip']    = mt.dip
@@ -498,15 +563,6 @@ class CMTSolutionHeader(SolutionHeader):
     @date.setter
     def date(self, value):
         self['date'] = value
-
-
-    @property
-    def ename(self):
-        return self['ename']
-
-    @ename.setter
-    def ename(self, value):
-        self['ename'] = value
 
 
     @property
