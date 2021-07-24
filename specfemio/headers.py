@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 ################################################################################
 #
@@ -112,7 +113,7 @@ class Header(dict):
 class CoordHeader(Header):
 
     def __init__(self,name=None,lat_yc=None,lon_xc=None,depth=None):
-        super(CoordHeader,self).__init__(self,name=name)
+        super(CoordHeader,self).__init__(name=name)
 
         self['lat_yc']    = lat_yc
         self['lon_xc']    = lon_xc
@@ -168,7 +169,8 @@ class CoordHeader(Header):
 class SpecHeader(CoordHeader):
 
     def __init__(self,name=None,lat_yc=None,lon_xc=None,depth=None,proj_id=0,eid=0,sid=0):
-        super(SpecHeader,self).__init__(self,name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth)
+        print('specheader.arg.name:',name)
+        super(SpecHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth)
 
         self['proj_id']   = proj_id
         self['eid']       = eid
@@ -234,6 +236,7 @@ class StationHeader(SpecHeader):
                  trid=0,
                  gid=0):
 
+        print('stationheader.arg.name:',name)
         super(StationHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth,proj_id=proj_id,eid=eid,sid=sid)
 
         if 32 < len(name):
@@ -413,7 +416,7 @@ class ForceSolutionHeader(SolutionHeader):
                                                  depth=depth,
                                                  tshift=tshift,
                                                  date=date,
-                                                 ename=ename
+                                                 ename=ename,
                                                  proj_id=proj_id,
                                                  eid=eid,
                                                  sid=sid)
@@ -679,23 +682,20 @@ class CMTSolutionHeader(SolutionHeader):
 #TODO this is the actual record. I need the header, then make record.py
 class RecordHeader(Header):
 
-    def __init__(self, name=None,solutions_h=None,stations_h=None,project_id=0,rid=0,iter_id=0):
-        super(CoordHeader,self).__init__(self,name=name)
+    def __init__(self, name=None,solutions_h=None,stations_h=None,proj_id=0,rid=0,iter_id=0):
+        super(RecordHeader,self).__init__(name=name)
 
+        check_all = False
         check_all = all(isinstance(s,SolutionHeader) for s in list(solutions_h))
-        if not check_all
-            raise Exception('arg: \'solutions_h\' must be of type SolutionHeader')
+        if not check_all:
+            raise Exception('elements in arg: \'solutions_h\' must be of type SolutionHeader')
 
         check_all = all(isinstance(s,StationHeader) for s in list(stations_h))
         if not check_all:
             raise Exception('elements in arg: \'stations_h\' must be of type StationHeader')
 
-        check_all = all(s.sid == solutions_h.sid for s in stations_h)
-        if not check_all:
-            raise Exception('sid of each element in arg: \'stations_h\' must match solutions_h.sid')
 
         self.comp_val   = rid
-
 
         self['proj_id'] = proj_id
         self['rid']     = rid
@@ -719,13 +719,13 @@ class RecordHeader(Header):
 
 
     def __str__(self):
-        out_str  = f'Solution Header:\n{self.solution_header}\n'
-        out_str += f'Station Headers:\n {self.df}'
+        out_str  = f'Solution Header:\n{self.solutions_df}\n'
+        out_str += f'Station Headers:\n {self.stations_df}'
         return out_str
 
     def __repr__(self):
-        out_str  = f'Solution Header:\n{self.solution_header.__repr__()}\n'
-        out_str += f'Station Headers:\n {self.df.__repr__()}'
+        out_str  = f'Solution Header:\n{self.solutions_df.__repr__()}\n'
+        out_str += f'Station Headers:\n {self.stations_df.__repr__()}'
         return out_str
 
 
@@ -743,10 +743,10 @@ class RecordHeader(Header):
         return header_list
 
     def get_solutions_header_list(self):
-        return self._get_list_from_df(is_stations=False):
+        return self._get_list_from_df(is_stations=False)
 
     def get_stations_header_list(self):
-        return self._get_list_from_df(is_stations=True):
+        return self._get_list_from_df(is_stations=True)
 
 
     def _add_header_word(self, key, h_values, is_stations=True):
@@ -761,15 +761,44 @@ class RecordHeader(Header):
                 raise Exception('len(\'h_values\') must equal number of stations')
             self.added_station_header_words.append(key)
             self.stations_df[key] = h_values
-        else is_stations:
+        else:
             if len(h_values) != len(self.stations_df.index):
                 raise Exception('len(\'h_values\') must equal number of solutions')
             self.added_solution_header_words.append(key)
             self.solutions_df[key] = h_values
 
-    def add_station_header_word(self, func=None):
-        self._add_header_word(func=func, is_stations=True):
+    def add_station_header_word(self, key, h_values):
+        self._add_header_word(key=key,h_values=h_values,is_stations=True)
 
     def add_solution_header_word(self, func=None):
-        self._add_header_word(func=func, is_stations=False):
+        self._add_header_word(key=key,h_values=h_values,is_stations=False)
+
+
+    @property
+    def proj_id(self):
+        return self['proj_id']
+    
+    @property
+    def rid(self):
+        return self['rid']
+    
+    @property
+    def iter_id(self):
+        return self['iter_id']
+    
+    @property
+    def solutions_df(self):
+        return self['solutions_df']
+    
+    @property
+    def stations_df(self):
+        return self['stations_df']
+    
+    @property
+    def added_solution_header_words(self):
+        return self['added_solution_header_words']
+    
+    @property
+    def added_station_header_words(self):
+        return self['added_station_header_words']
 

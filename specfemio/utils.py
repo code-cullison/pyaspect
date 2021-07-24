@@ -76,7 +76,7 @@ def station_to_str(s):
         slat  = s.lat_yc # or Y coordinate
         slon  = s.lon_xc # or X coordinate
         selev = s.elevation
-        sbur  = s.burial
+        sbur  = s.depth
         return '%s %s %.2f %.2f %.2f %.2f\n' %(sname,snet,slat,slon,selev,sbur)
 
 
@@ -122,7 +122,7 @@ def make_station_half_cross_members(station=None,delta=None):
     
     # add z + delta
     station_zp = copy.deepcopy(station)
-    station_zp.burial += delta
+    station_zp.depth += delta
     station_zp.gid  = l_gid[2]
     station_members.append(station_zp)
 
@@ -239,44 +239,44 @@ def prune_header_list(l_headers,key,val):
     return pruned
 
 
-def get_xyz_coords_from_header(h,depth_key=None):
-        return np.array([h.lon_xc,h.lat_yc,h[depth_key]])
+def get_xyz_coords_from_header(h):
+        return np.array([h.lon_xc,h.lat_yc,h.depth])
 
 
 def get_xyz_coords_from_station(s):
-    return get_xyz_coords_from_header(s,depth_key='burial')
+    return get_xyz_coords_from_header(s)
 
 
 def get_xyz_coords_from_solution(s):
-    return get_xyz_coords_from_header(s,depth_key='depth')
+    return get_xyz_coords_from_header(s)
 
 
-def get_xyz_coords_from_header_list(l_headers,depth_key=None):
+def get_xyz_coords_from_header_list(l_headers):
 
     xyz = np.zeros((len(l_headers),3))
     
     for i in range(len(l_headers)):
         h = l_headers[i]
-        xyz[i,:] = get_xyz_coords_from_header(h,depth_key)[:]
+        xyz[i,:] = get_xyz_coords_from_header(h)[:]
 
     return xyz
 
 
 def get_xyz_coords_from_station_list(l_stations):
-    return get_xyz_coords_from_header_list(l_stations,depth_key='burial')
+    return get_xyz_coords_from_header_list(l_stations)
 
 
 def get_xyz_coords_from_solution_list(l_stations):
-    return get_xyz_coords_from_header_list(l_stations,depth_key='depth')
+    return get_xyz_coords_from_header_list(l_stations)
 
 
-def get_xyz_coords_from_headers_except(l_headers,key=None,val=None,depth_key=None):
+def get_xyz_coords_from_headers_except(l_headers,key=None,val=None):
 
     p_headers = prune_header_list(l_headers,key,val)
 
-    return get_xyz_coords_from_header_list(p_headers,depth_key)
+    return get_xyz_coords_from_header_list(p_headers)
 
 
 def get_xyz_coords_from_station_list_except(l_stations,key=None,val=None):
-    return get_xyz_coords_from_headers_except(l_stations,key=key,val=val,depth_key='burial')
+    return get_xyz_coords_from_headers_except(l_stations,key=key,val=val)
 
