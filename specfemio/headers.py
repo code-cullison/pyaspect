@@ -2,7 +2,7 @@ import numpy as np
 
 ################################################################################
 #
-# General Header Class for SPECFEM3D files (STATION and SOLUTIONS)
+# General Header Class 
 #
 ################################################################################
 
@@ -105,7 +105,7 @@ class Header(dict):
 
 ################################################################################
 #
-# Headers for SPECFEM3D files (STATION and SOLUTIONS)
+# General Coordinate Headers for SPECFEM3D files (STATION and SOLUTIONS)
 #
 ################################################################################
 
@@ -117,6 +117,7 @@ class CoordHeader(Header):
         self['lat_yc']    = lat_yc
         self['lon_xc']    = lon_xc
         self['depth']     = depth
+        self['comp_val']  = self.depth
 
 
     def hash_val(self):
@@ -172,7 +173,6 @@ class SpecHeader(CoordHeader):
         self['proj_id']   = proj_id
         self['eid']       = eid
         self['sid']       = sid
-        self['comp_val']  = None
 
 
     def hash_val(self):
@@ -383,7 +383,7 @@ class ForceSolutionHeader(SolutionHeader):
     factor force source:           1
     component dir vect source E(x):   1
     component dir vect source N(y):   0
-    component dir vect source Z_UP:0
+    component dir vect source Z_UP:   0
     """
 
     def __init__(self,
@@ -667,3 +667,109 @@ class CMTSolutionHeader(SolutionHeader):
     @mtp.setter
     def mtp(self, value):
         self['mtp'] = value
+
+
+
+################################################################################
+#
+# Record Header for pairing SPECFEM SOLUTIONS with STATIONS
+#
+################################################################################
+
+#TODO this is the actual record. I need the header, then make record.py
+class RecordHeader(Header):
+
+    def __init__(self, name=None,solutions_h=None,stations_h=None,project_id=0,rid=0,iter_id=0):
+        super(CoordHeader,self).__init__(self,name=name)
+
+        check_all = all(isinstance(s,SolutionHeader) for s in list(solutions_h))
+        if not check_all
+            raise Exception('arg: \'solutions_h\' must be of type SolutionHeader')
+
+        check_all = all(isinstance(s,StationHeader) for s in list(stations_h))
+        if not check_all:
+            raise Exception('elements in arg: \'stations_h\' must be of type StationHeader')
+
+        check_all = all(s.sid == solutions_h.sid for s in stations_h)
+        if not check_all:
+            raise Exception('sid of each element in arg: \'stations_h\' must match solutions_h.sid')
+
+        self.comp_val   = rid
+
+
+        self['proj_id'] = proj_id
+        self['rid']     = rid
+        self['iter_id'] = iter_id
+
+        self['solutions_df'] = pd.DataFrame.from_records(solutions_h, index=['eid','sid'])
+        self['stations_df']  = pd.DataFrame.from_records(stations_h, index=['eid','sid','trid','gid'])
+
+        self['added_solution_header_words'] = []
+        self['added_station_header_words']  = []
+
+
+    def hash_val(self):
+        return np.sqrt(self.lon_xc**2 + self.lat_yc**2 + self.depth**2)
+
+    def comparator(self):
+        return self.comp_val
+
+    def eq_comparator(self):
+        return (self.lat_yc, self.lon_xc, self.depth)
+
+
+    def __str__(self):
+        out_str  = f'Solution Header:\n{self.solution_header}\n'
+        out_str += f'Station Headers:\n {self.df}'
+        return out_str
+
+    def __repr__(self):
+        out_str  = f'Solution Header:\n{self.solution_header.__repr__()}\n'
+        out_str += f'Station Headers:\n {self.df.__repr__()}'
+        return out_str
+
+
+    def _get_list_from_df(self, is_stations=True):
+
+        header_list = None
+        if is_stations:
+            c_df = self.stations_df.copy()
+        else:
+            c_df = self.solutions_df.copy()
+
+        c_df.reset_index(inplace=True)
+        header_list = mydf.to_dict('records')
+        del c_df
+        return header_list
+
+    def get_solutions_header_list(self):
+        return self._get_list_from_df(is_stations=False):
+
+    def get_stations_header_list(self):
+        return self._get_list_from_df(is_stations=True):
+
+
+    def _add_header_word(self, key, h_values, is_stations=True):
+
+        if not isinstance(key,str):
+            raise ValueError('arg: \'key\' must be a str type')
+        if not isinstance(h_values,list):
+            raise ValueError('arg: \'h_values\' must be a list type')
+
+        if is_stations:
+            if len(h_values) != len(self.stations_df.index):
+                raise Exception('len(\'h_values\') must equal number of stations')
+            self.added_station_header_words.append(key)
+            self.stations_df[key] = h_values
+        else is_stations:
+            if len(h_values) != len(self.stations_df.index):
+                raise Exception('len(\'h_values\') must equal number of solutions')
+            self.added_solution_header_words.append(key)
+            self.solutions_df[key] = h_values
+
+    def add_station_header_word(self, func=None):
+        self._add_header_word(func=func, is_stations=True):
+
+    def add_solution_header_word(self, func=None):
+        self._add_header_word(func=func, is_stations=False):
+
