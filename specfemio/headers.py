@@ -169,7 +169,6 @@ class CoordHeader(Header):
 class SpecHeader(CoordHeader):
 
     def __init__(self,name=None,lat_yc=None,lon_xc=None,depth=None,proj_id=0,eid=0,sid=0):
-        print('specheader.arg.name:',name)
         super(SpecHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth)
 
         self['proj_id']   = proj_id
@@ -236,7 +235,6 @@ class StationHeader(SpecHeader):
                  trid=0,
                  gid=0):
 
-        print('stationheader.arg.name:',name)
         super(StationHeader,self).__init__(name=name,lat_yc=lat_yc,lon_xc=lon_xc,depth=depth,proj_id=proj_id,eid=eid,sid=sid)
 
         if 32 < len(name):
@@ -259,6 +257,58 @@ class StationHeader(SpecHeader):
 
     def eq_comparator(self):
         return tuple(list(super().eq_comparator()) + [self.elevation])
+
+    @classmethod
+    def from_dict(cls,h_dict):
+        '''
+        Alternative constructor StationHeader
+
+        This constructor takes a :py:dict: object, 
+
+        The ``h_dict`` argument must have 'key: value' pairs for:
+
+        * ``name``
+        * ``lat_yc``
+        * ``lon_xc``
+        * ``depth``
+        * ``elevation``
+        * ``network``
+
+        If the following 'key: value' pairs are not specfied, then 
+        they will be set equal to 0:
+
+        * ``proj_id``
+        * ``eid``
+        * ``sid``
+        * ``trid``
+        * ``gid``
+
+        All other 'key: value' pairs will be added
+
+        '''
+
+        if not isinstance(h_dict,dict):
+            raise TypeError(f'arg: \'h_dict\' must be of type dict')
+
+        required_keys = ['name','lat_yc','lon_xc','depth','elevation','network']
+        
+        # check and get required keys
+        args_dict = {}
+        for rkey in required_keys:
+            if rkey not in h_dict:
+                raise Exception(f'missing key: \'{rkey}\'')
+            else:
+                args_dict[rkey] = h_dict[rkey]
+                del h_dict[rkey]
+
+        # make StationHeader
+        new_header = StationHeader(**args_dict)
+
+        # insert additional key: value pairs
+        for key in h_dict:
+            new_header[key] = h_dict[key]
+
+        return new_header
 
 
     @property
@@ -436,6 +486,67 @@ class ForceSolutionHeader(SolutionHeader):
         return tuple([*super().eq_comparator(), self.f0])
 
 
+    @classmethod
+    def from_dict(cls,h_dict):
+        '''
+        Alternative constructor ForceSolutionHeader
+
+        This constructor takes a :py:dict: object, 
+
+        The ``h_dict`` argument must have 'key: value' pairs for:
+
+        * ``ename``
+        * ``lat_yc``
+        * ``lon_xc``
+        * ``depth``
+        * ``tshift``
+        * ``date``
+        * ``f0``
+        * ``factor_fs``
+        * ``comp_src_EX``
+        * ``comp_src_NY``
+        * ``comp_src_Zup``
+
+        If the following 'key: value' pairs are not specfied, then 
+        they will be set equal to 0:
+
+        * ``proj_id``
+        * ``eid``
+        * ``sid``
+
+        All other 'key: value' pairs will be added
+
+        '''
+        if not isinstance(h_dict,dict):
+            raise TypeError(f'arg: \'h_dict\' must be of type dict')
+
+        required_keys = ['ename',
+                         'lat_yc','lon_xc','depth',
+                         'tshift',
+                         'date',
+                         'f0',
+                         'factor_fs',
+                         'comp_src_EX','comp_src_NY','comp_src_Zup']
+        
+        # check and get required keys
+        args_dict = {}
+        for rkey in required_keys:
+            if rkey not in h_dict:
+                raise Exception(f'missing key: \'{rkey}\'')
+            else:
+                args_dict[rkey] = h_dict[rkey]
+                del h_dict[rkey]
+
+        # make StationHeader
+        new_header = FroceSolutionHeader(**args_dict)
+
+        # insert additional key: value pairs
+        for key in h_dict:
+            new_header[key] = h_dict[key]
+
+        return new_header
+
+
     @property
     def f0(self):
         return self['f0']
@@ -557,6 +668,63 @@ class CMTSolutionHeader(SolutionHeader):
         hlist.append(self.hdur)
         hlist += [*super().eq_comparator()]
         return tuple(hlist)
+
+
+    @classmethod
+    def from_dict(cls,h_dict):
+        '''
+        Alternative constructor CMTSolutionHeader
+
+        This constructor takes a :py:dict: object, 
+
+        The ``h_dict`` argument must have 'key: value' pairs for:
+
+        * ``ename``
+        * ``lat_yc``
+        * ``lon_xc``
+        * ``depth``
+        * ``tshift``
+        * ``date``
+        * ``hdur``
+        * ``mt``
+
+        If the following 'key: value' pairs are not specfied, then 
+        they will be set equal to 0:
+
+        * ``proj_id``
+        * ``eid``
+        * ``sid``
+
+        All other 'key: value' pairs will be added
+
+        '''
+        if not isinstance(h_dict,dict):
+            raise TypeError(f'arg: \'h_dict\' must be of type dict')
+
+        required_keys = ['ename',
+                         'lat_yc','lon_xc','depth',
+                         'tshift',
+                         'date',
+                         'hdur',
+                         'mt']
+        
+        # check and get required keys
+        args_dict = {}
+        for rkey in required_keys:
+            if rkey not in h_dict:
+                raise Exception(f'missing key: \'{rkey}\'')
+            else:
+                args_dict[rkey] = h_dict[rkey]
+                del h_dict[rkey]
+
+        # make StationHeader
+        new_header = CMTSolutionHeader(**args_dict)
+
+        # insert additional key: value pairs
+        for key in h_dict:
+            new_header[key] = h_dict[key]
+
+        return new_header
 
 
     @property
@@ -701,6 +869,8 @@ class RecordHeader(Header):
         self['rid']     = rid
         self['iter_id'] = iter_id
 
+        self['solution_type'] = type(list(solutions_h[0]))
+
         self['solutions_df'] = pd.DataFrame.from_records(solutions_h, index=['eid','sid'])
         self['stations_df']  = pd.DataFrame.from_records(stations_h, index=['eid','sid','trid','gid'])
 
@@ -732,14 +902,23 @@ class RecordHeader(Header):
     def _get_list_from_df(self, is_stations=True):
 
         header_list = None
+
         if is_stations:
             c_df = self.stations_df.copy()
+            c_df.reset_index(inplace=True)
+            dict_list = c_df.to_dict('records')
+            del c_df
+            header_list = [StationHeader.from_dict(d) for d in dict_list]
         else:
             c_df = self.solutions_df.copy()
+            c_df.reset_index(inplace=True)
+            dict_list = c_df.to_dict('records')
+            del c_df
+            #FIXME
+            if self.solution_type == type(ForceSolutionHeader)
+            #header_list = [SolutionHeader.from_dict(d) for d in dict_list]
+            header_list = dict_list
 
-        c_df.reset_index(inplace=True)
-        header_list = mydf.to_dict('records')
-        del c_df
         return header_list
 
     def get_solutions_header_list(self):
@@ -773,6 +952,10 @@ class RecordHeader(Header):
     def add_solution_header_word(self, func=None):
         self._add_header_word(key=key,h_values=h_values,is_stations=False)
 
+
+    @property
+    def solution_type(self):
+        return self['solution_type']
 
     @property
     def proj_id(self):
