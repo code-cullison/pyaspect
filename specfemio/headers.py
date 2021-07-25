@@ -1,3 +1,4 @@
+import copy
 import importlib
 
 import numpy as np
@@ -86,6 +87,10 @@ class Header(dict):
 
     def eq_comparator(self):
         raise NotImplementedError
+
+
+    def copy(self):
+        return copy.deepcopy(self)
 
 
     @property
@@ -183,8 +188,9 @@ class SpecHeader(CoordHeader):
         return np.sqrt(self.proj_id**2 + self.eid**2 + self.sid**2 + sup_hv**2)
         #return np.sqrt(self.proj_id**2 + self.eid**2 + self.sid**2 + self.lon_xc**2 + self.lat_yc**2 + self.depth**2)
 
-    # NOT NEEDED
-    #def eq_comparator(self):
+
+    def eq_comparator(self):
+        return tuple(list(super().eq_comparator()) + [self.proj_id,self.eid,self.sid])
 
 
     @property
@@ -260,6 +266,7 @@ class StationHeader(SpecHeader):
     def eq_comparator(self):
         return tuple(list(super().eq_comparator()) + [self.elevation])
 
+
     @classmethod
     def from_dict(cls,h_dict):
         '''
@@ -311,6 +318,41 @@ class StationHeader(SpecHeader):
             new_header[key] = h_dict[key]
 
         return new_header
+
+
+    @classmethod
+    def from_series(cls,h_series):
+        '''
+        Alternative constructor StationHeader
+
+        This constructor takes a :py:dict: object, 
+
+        The ``h_series`` argument must have 'column names' for:
+
+        * ``name``
+        * ``lat_yc``
+        * ``lon_xc``
+        * ``depth``
+        * ``elevation``
+        * ``network``
+
+        If the following 'column names' are not specfied, then 
+        their values will be set equal to 0:
+
+        * ``proj_id``
+        * ``eid``
+        * ``sid``
+        * ``trid``
+        * ``gid``
+
+        All other 'column names' will also be added
+
+        '''
+
+        if not isinstance(h_series,pd.Series):
+            raise TypeError(f'arg: \'h_series\' must be of type panda.Series')
+
+        return StationHeader.from_dict(h_series.to_dict())
 
 
     @property
@@ -549,6 +591,43 @@ class ForceSolutionHeader(SolutionHeader):
         return new_header
 
 
+    @classmethod
+    def from_series(cls,h_series):
+        '''
+        Alternative constructor ForceSolutionHeader
+
+        This constructor takes a :py:pandas:Series: object, 
+
+        The ``h_series`` argument must have 'column names' for:
+
+        * ``ename``
+        * ``lat_yc``
+        * ``lon_xc``
+        * ``depth``
+        * ``tshift``
+        * ``date``
+        * ``f0``
+        * ``factor_fs``
+        * ``comp_src_EX``
+        * ``comp_src_NY``
+        * ``comp_src_Zup``
+
+        If the following 'column names' are not specfied, then 
+        their values will be set equal to 0:
+
+        * ``proj_id``
+        * ``eid``
+        * ``sid``
+
+        All other 'column names' will be added
+
+        '''
+        if not isinstance(h_series,pd.Series):
+            raise TypeError(f'arg: \'h_series\' must be of type pandas.Series')
+
+        return ForceSolutionHeader.from_dict(h_series.to_dict())
+
+
     @property
     def f0(self):
         return self['f0']
@@ -727,6 +806,40 @@ class CMTSolutionHeader(SolutionHeader):
             new_header[key] = h_dict[key]
 
         return new_header
+    
+
+    @classmethod
+    def from_series(cls,h_series):
+        '''
+        Alternative constructor CMTSolutionHeader
+
+        This constructor takes a :py:pandas:Series: object, 
+
+        The ``h_series`` argument must have 'column names' for:
+
+        * ``ename``
+        * ``lat_yc``
+        * ``lon_xc``
+        * ``depth``
+        * ``tshift``
+        * ``date``
+        * ``hdur``
+        * ``mt``
+
+        If the following 'column names' are not specfied, then 
+        their values will be set equal to 0:
+
+        * ``proj_id``
+        * ``eid``
+        * ``sid``
+
+        All other 'column names' will be added
+
+        '''
+        if not isinstance(h_series,pd.Series):
+            raise TypeError(f'arg: \'h_series\' must be of type pandas.Series')
+
+        return CMTSolutionHeader.from_dict(h_series.to_dict())
 
 
     @property
@@ -892,13 +1005,29 @@ class RecordHeader(Header):
 
 
     def hash_val(self):
-        return np.sqrt(self.lon_xc**2 + self.lat_yc**2 + self.depth**2)
+        return np.sqrt(self.proj_id**2 + self.rid**2 + self.iter_id**2)
 
     def comparator(self):
         return self.comp_val
 
-    def eq_comparator(self):
-        return (self.lat_yc, self.lon_xc, self.depth)
+    def eq_comparator(self,other):
+        are_solutions_eq = self.solutions_df.equals(other.solutions_df)
+        are_stations_eq  = self.stations_df.equals(other.stations_df)
+        are_ids_eq       = (self.proj_id == other.proj_id and 
+                            self.rid == other.rid and 
+                            self.iter_id == other.iter_id)
+
+        return are_solutions_eq and are_stations_eq and are_ids_eq
+
+    def __eq__(self, other):
+        if not self._is_valid_operand(other):
+            return NotImplemented
+        return (self.eq_comparator(other))
+
+    def __ne__(self, other):
+        if not self._is_valid_operand(other):
+            return NotImplemented
+        return (not self.eq_comparator(other))
 
 
     def __str__(self):
@@ -919,20 +1048,23 @@ class RecordHeader(Header):
         if is_stations:
             c_df = self.stations_df.copy()
             c_df.reset_index(inplace=True)
-            dict_list = c_df.to_dict('records')
-            del c_df
+            #dict_list = c_df.to_dict('records')
             #FIXME: is this really a good trick?
             StatHeaderCls = getattr(importlib.import_module(self._station_mod_name), self._station_cls_name)
-            header_list = [StatHeaderCls.from_dict(d) for d in dict_list]
-            #header_list = [StationHeader.from_dict(d) for d in dict_list]
+            header_list = [StatHeaderCls.from_series(row) for index, row in c_df.iterrows()]
+            del c_df
+            #StatHeaderCls = getattr(importlib.import_module(self._station_mod_name), self._station_cls_name)
+            #header_list = [StatHeaderCls.from_dict(d) for d in dict_list]
         else:
             c_df = self.solutions_df.copy()
             c_df.reset_index(inplace=True)
-            dict_list = c_df.to_dict('records')
-            del c_df
+            #dict_list = c_df.to_dict('records')
             #FIXME: is this really a good trick?
             SolHeaderCls = getattr(importlib.import_module(self._solution_mod_name), self._solution_cls_name)
-            header_list = [SolHeaderCls.from_dict(d) for d in dict_list]
+            header_list = [SolHeaderCls.from_series(row) for index, row in c_df.iterrows()]
+            del c_df
+            #SolHeaderCls = getattr(importlib.import_module(self._solution_mod_name), self._solution_cls_name)
+            #header_list = [SolHeaderCls.from_dict(d) for d in dict_list]
 
         return header_list
 
