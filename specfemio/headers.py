@@ -4,6 +4,8 @@ import importlib
 import numpy as np
 import pandas as pd
 
+from pyaspect.moment_tensor import MomentTensor
+
 ################################################################################
 #
 # General Header Class 
@@ -729,7 +731,7 @@ class CMTSolutionHeader(SolutionHeader):
         self['strike'] = mt.strike
         self['dip']    = mt.dip
         self['rake']   = mt.rake
-        self['Mw']     = mt.Mw
+        self['mw']     = mt.Mw
         self['mrr']    = mt.harvard_dcm_m6()[0]
         self['mtt']    = mt.harvard_dcm_m6()[1]
         self['mpp']    = mt.harvard_dcm_m6()[2]
@@ -767,7 +769,10 @@ class CMTSolutionHeader(SolutionHeader):
         * ``tshift``
         * ``date``
         * ``hdur``
-        * ``mt``
+        * ``strike``
+        * ``dip``
+        * ``rake``
+        * ``mw``
 
         If the following 'key: value' pairs are not specfied, then 
         they will be set equal to 0:
@@ -786,8 +791,12 @@ class CMTSolutionHeader(SolutionHeader):
                          'lat_yc','lon_xc','depth',
                          'tshift',
                          'date',
-                         'hdur',
-                         'mt']
+                         'hdur']
+        
+        required_mt_keys = ['strike',
+                            'dip',
+                            'rake',
+                            'mw']
         
         # check and get required keys
         args_dict = {}
@@ -797,6 +806,21 @@ class CMTSolutionHeader(SolutionHeader):
             else:
                 args_dict[rkey] = h_dict[rkey]
                 del h_dict[rkey]
+
+        # check and get required moment-tensor keys
+        mt_args_dict = {}
+        for rkey in required_mt_keys:
+            if rkey not in h_dict:
+                raise Exception(f'missing mt-key: \'{rkey}\'')
+            else:
+                mt_args_dict[rkey] = h_dict[rkey]
+                del h_dict[rkey]
+
+        # add moment tensor
+        args_dict['mt'] = MomentTensor(mw=mt_args_dict['mw'],
+                                       strike=mt_args_dict['strike'],
+                                       dip=mt_args_dict['dip'],
+                                       rake=mt_args_dict['rake'])
 
         # make StationHeader
         new_header = CMTSolutionHeader(**args_dict)
@@ -824,7 +848,10 @@ class CMTSolutionHeader(SolutionHeader):
         * ``tshift``
         * ``date``
         * ``hdur``
-        * ``mt``
+        * ``strike``
+        * ``dip``
+        * ``rake``
+        * ``mw``
 
         If the following 'column names' are not specfied, then 
         their values will be set equal to 0:
@@ -892,13 +919,18 @@ class CMTSolutionHeader(SolutionHeader):
         self['rake'] = value
 
 
+    #no setter for Mw but there is for mw
     @property
     def Mw(self):
-        return self['Mw']
+        return self['mw']
 
-    @Mw.setter
-    def Mw(self, value):
-        self['Mw'] = value
+    @property
+    def mw(self):
+        return self['mw']
+
+    @mw.setter
+    def mw(self, value):
+        self['mw'] = value
 
 
     @property
@@ -1022,6 +1054,7 @@ class RecordHeader(Header):
     def __eq__(self, other):
         if not self._is_valid_operand(other):
             return NotImplemented
+        req = self.eq_comparator(other)
         return (self.eq_comparator(other))
 
     def __ne__(self, other):
@@ -1089,8 +1122,6 @@ class RecordHeader(Header):
             self.stations_df[key] = h_values
         else:
             if len(h_values) != len(self.solutions_df.index):
-                print('len(h_values):',len(h_values))
-                print('len(self.stations_df.index):',len(self.stations_df.index))
                 raise Exception('len(\'h_values\') must equal number of solutions')
             self.added_solution_header_words.append(key)
             self.solutions_df[key] = h_values
