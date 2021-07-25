@@ -1,3 +1,5 @@
+import importlib
+
 import numpy as np
 import pandas as pd
 
@@ -538,7 +540,7 @@ class ForceSolutionHeader(SolutionHeader):
                 del h_dict[rkey]
 
         # make StationHeader
-        new_header = FroceSolutionHeader(**args_dict)
+        new_header = ForceSolutionHeader(**args_dict)
 
         # insert additional key: value pairs
         for key in h_dict:
@@ -858,6 +860,11 @@ class RecordHeader(Header):
         if not check_all:
             raise Exception('elements in arg: \'solutions_h\' must be of type SolutionHeader')
 
+        check_s = list(solutions_h)[0]
+        check_all = all(type(s) == type(check_s) for s in list(solutions_h))
+        if not check_all:
+            raise Exception('all elements in arg: \'solutions_h\' must be of type {type(check_s)}')
+
         check_all = all(isinstance(s,StationHeader) for s in list(stations_h))
         if not check_all:
             raise Exception('elements in arg: \'stations_h\' must be of type StationHeader')
@@ -869,7 +876,13 @@ class RecordHeader(Header):
         self['rid']     = rid
         self['iter_id'] = iter_id
 
-        self['solution_type'] = type(list(solutions_h[0]))
+        #FIXME: see below. is this a good/safe trick?
+        self._solution_mod_name = solutions_h[0].__module__
+        self._solution_cls_name = solutions_h[0].__class__.__name__
+
+        self._station_mod_name = stations_h[0].__module__
+        self._station_cls_name = stations_h[0].__class__.__name__
+
 
         self['solutions_df'] = pd.DataFrame.from_records(solutions_h, index=['eid','sid'])
         self['stations_df']  = pd.DataFrame.from_records(stations_h, index=['eid','sid','trid','gid'])
@@ -908,16 +921,18 @@ class RecordHeader(Header):
             c_df.reset_index(inplace=True)
             dict_list = c_df.to_dict('records')
             del c_df
-            header_list = [StationHeader.from_dict(d) for d in dict_list]
+            #FIXME: is this really a good trick?
+            StatHeaderCls = getattr(importlib.import_module(self._station_mod_name), self._station_cls_name)
+            header_list = [StatHeaderCls.from_dict(d) for d in dict_list]
+            #header_list = [StationHeader.from_dict(d) for d in dict_list]
         else:
             c_df = self.solutions_df.copy()
             c_df.reset_index(inplace=True)
             dict_list = c_df.to_dict('records')
             del c_df
-            #FIXME
-            if self.solution_type == type(ForceSolutionHeader)
-            #header_list = [SolutionHeader.from_dict(d) for d in dict_list]
-            header_list = dict_list
+            #FIXME: is this really a good trick?
+            SolHeaderCls = getattr(importlib.import_module(self._solution_mod_name), self._solution_cls_name)
+            header_list = [SolHeaderCls.from_dict(d) for d in dict_list]
 
         return header_list
 
@@ -941,7 +956,9 @@ class RecordHeader(Header):
             self.added_station_header_words.append(key)
             self.stations_df[key] = h_values
         else:
-            if len(h_values) != len(self.stations_df.index):
+            if len(h_values) != len(self.solutions_df.index):
+                print('len(h_values):',len(h_values))
+                print('len(self.stations_df.index):',len(self.stations_df.index))
                 raise Exception('len(\'h_values\') must equal number of solutions')
             self.added_solution_header_words.append(key)
             self.solutions_df[key] = h_values
@@ -949,7 +966,7 @@ class RecordHeader(Header):
     def add_station_header_word(self, key, h_values):
         self._add_header_word(key=key,h_values=h_values,is_stations=True)
 
-    def add_solution_header_word(self, func=None):
+    def add_solution_header_word(self, key, h_values):
         self._add_header_word(key=key,h_values=h_values,is_stations=False)
 
 

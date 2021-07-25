@@ -347,7 +347,7 @@ class BatchCMTProject(Project):
                  pyutils_fqp=None,
                  script_fqp=None,
                  proj_path=None,
-                 records=None
+                 records=None,
                  sub_proj_bname=None,
                  ignore_spec_max=False):
 
