@@ -161,14 +161,31 @@ def write_record(proj_fqp,record,fname='project.records'):
 
     #first write solution files and headers
     solutions = record.get_solutions_header_list()
-    data_fqp  = _join_path_fname(proj_fqp,'DATA')
     edir_fqp  = _join_path_fname(data_fqp,f'run{str(solutions[0].eid).zfill(4)}')
+    data_fqp  = _join_path_fname(edir_fqp,'DATA')
 
-    for s in solutions:
-        write_solution(edir_fqp,s)
+    solution_range = set(record._get_reset_df(is_stations=False)['sid'])
+    station_range = set(record._get_reset_df(is_stations=False)['sid'])
+
+    if solution_range != station_range:
+        raise Exception('The solutions.sid are not the same as stations.sid')
+
+    #for s in solutions:
+    for i in range(solution_range):
+        s = solutions[i]
+        if s.sid != i:
+            raise Exception(f'solution.sid is not the correct value')
+        write_solution(data_fqp,s)
 
     #now write station files and headers
-    get_stations_header_list
+    for i in range(s_range):
+        stations = get_stations_header_list(key='sid',value=i,is_stations=True)
+        for s in stations:
+            if s.sid != i:
+                raise Exception(f'station.sid is not the correct value')
+
+        s_fname = f'STATIONS.sid{i}'
+        write_stations(data_fqp,stations,fname=s_fname,write_h=True):
 
    
 
