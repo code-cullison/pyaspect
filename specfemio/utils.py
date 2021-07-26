@@ -12,11 +12,21 @@ import numpy as np
 #
 ################################################################################
 
-def _get_file_header_paths(fqp,fname):
+def _join_path_fname(fqp,fname):
 
     path = os.path.relpath(fqp, start=os.curdir)
     fqpname = os.path.join(path, fname)
-    header_fqpname = os.path.join(path, f'pyheader.{fname.lower()}')
+
+    return fqpname
+
+
+def _get_file_header_paths(fqp,fname):
+
+    #path = os.path.relpath(fqp, start=os.curdir)
+    #fqpname = os.path.join(path, fname)
+    #header_fqpname = os.path.join(path, f'pyheader.{fname.lower()}')
+    fqpname = _join_path_fname(fqp, fname)
+    header_fqpname = _join_path_fname(fqp, f'pyheader.{fname.lower()}')
 
     return fqpname, header_fqpname
 

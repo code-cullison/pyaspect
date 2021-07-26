@@ -1075,48 +1075,70 @@ class RecordHeader(Header):
 
 
     def __str__(self):
-        out_str  = f'Solution Header:\n{self.solutions_df}\n'
+        out_str  = f'Solution Header:\n{self.solutions_df}\n\n'
         out_str += f'Station Headers:\n {self.stations_df}'
         return out_str
 
     def __repr__(self):
-        out_str  = f'Solution Header:\n{self.solutions_df.__repr__()}\n'
+        out_str  = f'Solution Header:\n{self.solutions_df.__repr__()}\n\n'
         out_str += f'Station Headers:\n {self.stations_df.__repr__()}'
         return out_str
 
 
-    def _get_list_from_df(self, is_stations=True):
-
-        header_list = None
+    def _get_reset_df(self,key=None,value=None,is_stations=True):
+        
+        c_df = None
 
         if is_stations:
             c_df = self.stations_df.copy()
-            c_df.reset_index(inplace=True)
-            #dict_list = c_df.to_dict('records')
-            #FIXME: is this really a good trick?
-            StatHeaderCls = getattr(importlib.import_module(self._station_mod_name), self._station_cls_name)
-            header_list = [StatHeaderCls.from_series(row) for index, row in c_df.iterrows()]
-            del c_df
-            #StatHeaderCls = getattr(importlib.import_module(self._station_mod_name), self._station_cls_name)
-            #header_list = [StatHeaderCls.from_dict(d) for d in dict_list]
         else:
             c_df = self.solutions_df.copy()
-            c_df.reset_index(inplace=True)
-            #dict_list = c_df.to_dict('records')
-            #FIXME: is this really a good trick?
-            SolHeaderCls = getattr(importlib.import_module(self._solution_mod_name), self._solution_cls_name)
-            header_list = [SolHeaderCls.from_series(row) for index, row in c_df.iterrows()]
-            del c_df
-            #SolHeaderCls = getattr(importlib.import_module(self._solution_mod_name), self._solution_cls_name)
-            #header_list = [SolHeaderCls.from_dict(d) for d in dict_list]
+
+        c_df.reset_index(inplace=True)
+
+        if key != None:
+            if key not in c_df.columns:
+                raise KeyError('key: {key} is not a column in stations_df')
+            v_dtype = c_df.dtypes[key]
+            if not isinstance(value,v_dtype):
+                raise ValueError('\'value\' dtype={type(value)} but column dtype={v_dtypes}')
+            c_df = c_df.loc[cd_f[key] == value]
+
+        return c_df
+
+
+    def _get_header_class(self,is_stations=True):
+
+        HeaderCls = None
+
+        if is_stations:
+            HeaderCls = getattr(importlib.import_module(self._station_mod_name), self._station_cls_name)
+        else:
+            HeaderCls = getattr(importlib.import_module(self._solution_mod_name), self._solution_cls_name)
+
+        return HeaderCls
+
+
+    def _get_list_from_df(self, key=None, value=None, is_stations=True):
+
+        c_df = _get_reset_df(key=key,value=value,is_stations=is_stations)
+
+        #FIXME: Q. Is this a good trick or an ugly trick?
+        #       A. It's a trick.
+        HeaderCls = _get_header_class(is_stations=is_stations)
+
+        header_list = [HeaderCls.from_series(row) for index, row in c_df.iterrows()]
+
+        del c_df
 
         return header_list
 
-    def get_solutions_header_list(self):
-        return self._get_list_from_df(is_stations=False)
 
-    def get_stations_header_list(self):
-        return self._get_list_from_df(is_stations=True)
+    def get_solutions_header_list(self, key=None, value=None):
+        return self._get_list_from_df(key=key,value=value,is_stations=False)
+
+    def get_stations_header_list(self, key=None, value=None):
+        return self._get_list_from_df(key=key,value=value,is_stations=True)
 
 
     def _add_header_word(self, key, h_values, is_stations=True):
