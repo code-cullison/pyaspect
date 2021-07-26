@@ -280,3 +280,71 @@ def get_xyz_coords_from_headers_except(l_headers,key=None,val=None):
 def get_xyz_coords_from_station_list_except(l_stations,key=None,val=None):
     return get_xyz_coords_from_headers_except(l_stations,key=key,val=val)
 
+
+
+################################################################################
+#
+# Functions for getting SOLUTION groups and lists
+#
+################################################################################
+
+
+def make_triplet_force_solution_members(src=None):
+
+    from pyaspect.specfemio.headers import ForceSolutionHeader
+    
+    solution_members = []
+
+    # create Force 001 (North/Y axis)
+    force_solution_1 = src.copy()
+    force_solution_1.sid = 1 
+    force_solution_1.comp_src_EX  = 0
+    force_solution_1.comp_src_NY  = src.comp_src_EX 
+    force_solution_1.comp_src_Zup = 0
+    hstr_1 = ForceSolutionHeader.create_header_name(eid=force_solution_1.eid,
+                                              sid=force_solution_1.sid,
+                                              date=force_solution_1.date,
+                                              lat_yc=force_solution_1.lat_yc,
+                                              lon_xc=force_solution_1.lon_xc,
+                                              depth=force_solution_1.depth)
+    force_solution_1.name = hstr_1
+    solution_members.append(force_solution_1)
+
+    # create Force 002 (Z axis)
+    force_solution_2 = src.copy()
+    force_solution_2.sid = 2 
+    force_solution_2.comp_src_EX  = 0
+    force_solution_2.comp_src_NY  = 0
+    force_solution_2.comp_src_Zup = src.comp_src_EX 
+    hstr_2 = ForceSolutionHeader.create_header_name(eid=force_solution_2.eid,
+                                              sid=force_solution_2.sid,
+                                              date=force_solution_2.date,
+                                              lat_yc=force_solution_2.lat_yc,
+                                              lon_xc=force_solution_2.lon_xc,
+                                              depth=force_solution_2.depth)
+    force_solution_2.name = hstr_2
+    solution_members.append(force_solution_2)
+    
+    return solution_members
+
+    
+def make_triplet_force_solution_group(src=None):
+
+    if src.sid != 0:
+        raise ValueError('arg: \'src\' had non-zero solution_id (src.sid)')
+
+    if src.comp_src_EX == 0:
+        raise ValueError('arg: \'src\' has comp_src_EX=0')
+
+    return [src] + make_triplet_force_solution_members(src)
+    
+
+def make_grouped_triplet_force_solution_headers(solutions=None):
+    
+    triplet_solution_list = []
+
+    for i in range(len(solutions)):
+        triplet_solution = make_triplet_force_solution_group(solutions[i])
+        triplet_solution_list.append(triplet_solution)
+
+    return triplet_solution_list

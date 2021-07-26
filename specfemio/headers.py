@@ -501,10 +501,13 @@ class ForceSolutionHeader(SolutionHeader):
              eid=0,
              sid=0):
 
-
-        hstr  = f'FORCE ' + str(sid).zfill(3)
-        hstr += f' {date.year} {date.month} {date.day} {date.hour} {date.minute} {date.second}'
-        hstr += f' {lat_yc} {lon_xc} {depth/1000} srcid_{eid}'
+        #FIXME: make header name (kind of ugley way to do this)
+        hstr = ForceSolutionHeader.create_header_name(eid=eid,
+                                                      sid=sid,
+                                                      date=date,
+                                                      lat_yc=lat_yc,
+                                                      lon_xc=lon_xc,
+                                                      depth=depth)
 
         super(ForceSolutionHeader,self).__init__(name=hstr,
                                                  lat_yc=lat_yc,
@@ -530,6 +533,14 @@ class ForceSolutionHeader(SolutionHeader):
 
     def eq_comparator(self):
         return tuple([*super().eq_comparator(), self.f0])
+
+
+    @staticmethod
+    def create_header_name(eid=None,sid=None,date=None,lat_yc=None,lon_xc=None,depth=None):
+        hstr  = f'FORCE ' + str(sid).zfill(3)
+        hstr += f' {date.year} {date.month} {date.day} {date.hour} {date.minute} {date.second}'
+        hstr += f' {lat_yc} {lon_xc} {depth/1000} srcid_{eid}'
+        return hstr
 
 
     @classmethod
