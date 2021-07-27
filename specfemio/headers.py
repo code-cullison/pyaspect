@@ -1099,10 +1099,8 @@ class RecordHeader(Header):
         if key != None:
             if key not in c_df.columns:
                 raise KeyError('key: {key} is not a column in stations_df')
-            v_dtype = c_df.dtypes[key]
-            if not isinstance(value,v_dtype):
-                raise ValueError('\'value\' dtype={type(value)} but column dtype={v_dtypes}')
-            c_df = c_df.loc[cd_f[key] == value]
+            #FIXME: find a way to check dtype of value and those in columns
+            c_df = c_df.loc[c_df[key] == value]
 
         return c_df
 
@@ -1121,11 +1119,11 @@ class RecordHeader(Header):
 
     def _get_list_from_df(self, key=None, value=None, is_stations=True):
 
-        c_df = _get_reset_df(key=key,value=value,is_stations=is_stations)
+        c_df = self._get_reset_df(key=key,value=value,is_stations=is_stations)
 
         #FIXME: Q. Is this a good trick or an ugly trick?
         #       A. It's a trick.
-        HeaderCls = _get_header_class(is_stations=is_stations)
+        HeaderCls = self._get_header_class(is_stations=is_stations)
 
         header_list = [HeaderCls.from_series(row) for index, row in c_df.iterrows()]
 

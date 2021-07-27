@@ -20,13 +20,20 @@ def _join_path_fname(fqp,fname):
     return fqpname
 
 
+def _get_file_path(fqp,fname):
+    return _join_path_fname(fqp, fname)
+
+
+def _get_header_path(fqp,fname):
+    return _join_path_fname(fqp, f'pyheader.{fname.lower()}')
+
+
 def _get_file_header_paths(fqp,fname):
 
-    #path = os.path.relpath(fqp, start=os.curdir)
-    #fqpname = os.path.join(path, fname)
-    #header_fqpname = os.path.join(path, f'pyheader.{fname.lower()}')
-    fqpname = _join_path_fname(fqp, fname)
-    header_fqpname = _join_path_fname(fqp, f'pyheader.{fname.lower()}')
+    #fqpname = _join_path_fname(fqp, fname)
+    #header_fqpname = _join_path_fname(fqp, f'pyheader.{fname.lower()}')
+    fqpname = _get_file_path(fqp, fname)
+    header_fqpname = _get_header_path(fqp, fname)
 
     return fqpname, header_fqpname
 
