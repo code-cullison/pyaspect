@@ -86,22 +86,52 @@ def cmtsolution_2_str(cmts):
 #
 ################################################################################
 
+def station_auto_name(s):
+    return f't{str(s.trid).zfill(6)}g{str(s.gid).zfill(2)}'
 
-def station_to_str(s):
-        sname = f'{s.name}_{s.trid}_{s.gid}_{s.sid}'
-        snet  = s.network
-        slat  = s.lat_yc # or Y coordinate
-        slon  = s.lon_xc # or X coordinate
-        selev = s.elevation
-        sbur  = s.depth
-        return '%s %s %.2f %.2f %.2f %.2f\n' %(sname,snet,slat,slon,selev,sbur)
+def network_auto_name(s):
+    return f's{str(s.sid).zfill(2)}'
+
+def station_auto_data_fname_id(s):
+    net_code  = network_auto_name(s)
+    stat_code = station_auto_name(s)
+    return f'{net_code}.{stat_code}'
+
+def station_to_str(s,auto_name=False,auto_network=False):
+
+    print(f'auto_name={auto_name}')
+    print(f'auto_network={auto_network}')
+    sname = s.name
+    if auto_name:
+        sname = station_auto_name(s)
+        #sname = f't{str(s.trid).zfill(6)}g{str(s.gid).zfill(2)}'
+    if 10 < len(sname):
+        # the SPECFEM default is 32 characters, but in my testing I could
+        # only use 10 characters -> It might be a FORTRAN complier optimization 
+        # issue. The "read(IIN,'(a)',iostat) line" in read_stations is where
+        # things go heywire
+        raise Exception('trace name is too long -> less than 32 chars requied')
+
+    snet  = s.network
+    if auto_network:
+        snet  = network_auto_name(s)
+        #snet  = f's{str(s.sid).zfill(2)}'
+
+    slat  = s.lat_yc # or Y coordinate
+    slon  = s.lon_xc # or X coordinate
+    selev = s.elevation
+    sbur  = s.depth
+
+    return '%s %s %.2f %.2f %.2f %.2f\n' %(sname,snet,slat,slon,selev,sbur)
 
 
-def station_list_to_str(l_stations):
+def station_list_to_str(l_stations,auto_name=False,auto_network=False):
 
     str_stations = ''
     for i in range(len(l_stations)):
-        str_stations += station_to_str(l_stations[i])
+        str_stations += station_to_str(l_stations[i],
+                                       auto_name=auto_name,
+                                       auto_network=auto_network)
 
     return str_stations
 

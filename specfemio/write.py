@@ -9,6 +9,7 @@ from pyaspect.specfemio.utils import forcesolution_2_str
 from pyaspect.specfemio.utils import cmtsolution_2_str
 from pyaspect.specfemio.utils import station_to_str
 from pyaspect.specfemio.utils import station_list_to_str
+from pyaspect.specfemio.utils import station_auto_data_fname_id
 from pyaspect.specfemio.utils import flatten_grouped_headers
 from pyaspect.specfemio.utils import flatten_grouped_headers_unique
 from pyaspect.specfemio.utils import is_grouped_headers
@@ -136,17 +137,26 @@ def write_grouped_forcesolutions(fqp,l_fs,fname='FORCESOLUTION',write_h=True):
 ################################################################################
 
 
-def write_stations(fqp,l_stations,fname='STATIONS',write_h=True):
+def write_stations(fqp,
+                   l_stations,
+                   fname='STATIONS',
+                   write_h=True,
+                   auto_name=False,
+                   auto_network=False):
 
     str_stations  = None
     group_headers = None
 
+    flat_l_stations = l_stations
+
     if is_grouped_headers(l_stations):
-        str_stations  = station_list_to_str(flatten_grouped_headers_unique(l_stations))
-        group_headers = station_list_to_str(flatten_grouped_headers(l_stations))
-    else:
-        str_stations = station_list_to_str(l_stations)
-        group_headers = l_stations
+        flat_l_stations = flatten_grouped_headers(l_stations)
+
+    str_stations = station_list_to_str(flat_l_stations,
+                                       auto_name=auto_name,
+                                       auto_network=auto_network)
+
+    group_headers = flat_l_stations
 
     fqp_file, fqp_header = _get_file_header_paths(fqp,fname)
 
@@ -167,7 +177,9 @@ def write_record(proj_fqp,
                  record,
                  fname='event_record',
                  write_record_h=True,
-                 write_h=True):
+                 write_h=True,
+                 auto_name=False,
+                 auto_network=False):
 
     # do some checking
     solution_range = set(record._get_reset_df(is_stations=False)['sid'])
@@ -210,8 +222,20 @@ def write_record(proj_fqp,
             if s.eid != eid:
                 raise Exception('station.eid does not match list of stations')
 
+            #TODO: could make '/SYN' dir variable dynamic
+            #      also with out knowing specfem DT, can't
+            #      finish the name of the station data (trace)
+            data_fname = station_auto_data_fname_id(s)
+            s.data_fqdn = _join_path_fname(edir_fqp,f'/SYN/{data_fname}')
+        
+
         s_fname = f'STATIONS.sid{i}'
-        write_stations(data_fqp,stations,fname=s_fname,write_h=write_h)
+        write_stations(data_fqp,
+                       stations,
+                       fname=s_fname,
+                       write_h=write_h,
+                       auto_name=auto_name,
+                       auto_network=auto_network)
 
     # write record header
     if write_record_h:
@@ -222,7 +246,9 @@ def write_records(proj_fqp,
                   l_records,
                   fname='proj_record',
                   write_record_h=True,
-                  write_h=True):
+                  write_h=True,
+                  auto_name=False,
+                  auto_network=False):
 
     if not isinstance(l_records,list):
         raise ArgumentError('l_records must be a list')
@@ -234,7 +260,13 @@ def write_records(proj_fqp,
         raise Exception('some records have the same rid')
 
     for r in l_records:
-        write_record(proj_fqp,r,fname=f'event_record',write_record_h=True,write_h=True)
+        write_record(proj_fqp,
+                     r,
+                     fname=f'event_record',
+                     write_record_h=True,
+                     write_h=True,
+                     auto_name=auto_name,
+                     auto_network=auto_network)
 
     l_records_fqp = _get_header_path(proj_fqp,fname)
     _write_header(l_records_fqp,l_records)
