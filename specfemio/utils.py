@@ -395,3 +395,68 @@ def make_grouped_triplet_force_solution_headers(solutions=None):
         triplet_solution_list.append(triplet_solution)
 
     return triplet_solution_list
+
+
+
+################################################################################
+#
+# Functions for creating Records and lists of Records
+#
+################################################################################
+
+
+def make_records(l_src=None,l_rec=None):
+
+    if not isinstance(l_src,list):
+        raise Exception('l_src must be a list type')
+    if not isinstance(l_rec,list):
+        raise Exception('l_rec must be a list type')
+
+    if len(l_src) != len(l_rec):
+        raise Exception('Lengths of l_src and l_rec must be equal')
+
+    from pyaspect.specfemio.headers import SolutionHeader
+    from pyaspect.specfemio.headers import StationHeader
+    from pyaspect.specfemio.headers import RecordHeader
+
+    l_records = []
+
+    is_src_list = isinstance(l_src[0],list)
+
+    if is_src_list:
+        if not isinstance(l_src[0][0],SolutionHeader):
+            raise TypeError('l_src[:][:] elements must be of type:{type(SolutionHeader}')
+        if not isinstance(l_rec[0][0],list):
+            raise Exception('Sources are grouped, but receivers appear not to be.')
+        if not isinstance(l_rec[0][0][0],StationHeader):
+            raise TypeError('r_src[:][:][:] elements must be of type:{type(StationHeader}')
+        
+        for i in range(len(l_src)):
+            sgrp = l_src[i]
+            for j in range(len(sgrp)):
+                s = sgrp[j]
+                for r in l_rec[i][j]:
+                    r.eid = s.eid
+                    r.sid = s.sid
+
+            record = RecordHeader(solutions_h=sgrp,stations_h=flatten_grouped_headers(l_rec[i]),rid=i)
+            l_records.append(record)
+
+    else:
+        if not isinstance(l_src[0],SolutionHeader):
+            raise TypeError('l_src[:] elements must be of type:{type(SolutionHeader}')
+        if not isinstance(l_rec[0],list):
+            raise Exception('l_rec is not complient with l_src')
+        if not isinstance(l_rec[0][0],StationHeader):
+            raise TypeError('r_src[:][:] elements must be of type:{type(StationHeader}')
+
+        for i in range(len(l_src)):
+            s = l_src[i]
+            for r in l_rec[i]: 
+                r.eid = s.eid
+                r.sid = s.sid
+
+            record = RecordHeader(solutions_h=s,stations_h=l_rec[i],rid=i)
+            l_records.append(record)
+
+    return l_records
