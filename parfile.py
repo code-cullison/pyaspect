@@ -1,6 +1,6 @@
 import numpy as np
 
-Par_file_dict = {'SIMULATION_TYPE '                : 'int',
+PAR_FILE_DICT = {'SIMULATION_TYPE '                : 'int',
                  'NOISE_TOMOGRAPHY '               : 'int',
                  'SAVE_FORWARD '                   : 'bool',
                  'INVERSE_FWI_FULL_PROBLEM '       : 'bool',
@@ -91,20 +91,27 @@ Par_file_dict = {'SIMULATION_TYPE '                : 'int',
                  'PARTITIONING_TYPE '              : 'int'}
 
 
-par_int_types = (int,np.int32,np.int64,np.uint32,np.uint64)
-par_float_types = (*par_int_types,float,np.float32,np.float64)
+PAR_INT_TYPES = (int,np.int32,np.int64,np.uint32,np.uint64)
+PAR_FLOAT_TYPES = (*PAR_INT_TYPES,float,np.float32,np.float64)
 #TODO: more?
-par_model_types = ('aniso','external','gll','salton_trough','tomo','SEP')
-par_fkmodel_types = ('FKmodel')
+PAR_MODEL_TYPES = ('aniso','external','gll','salton_trough','tomo','SEP')
+PAR_FKMODEL_TYPES = ('FKmodel')
 
-Par_type_dict = {'bool':(bool),
-                 'd0':par_int_types,
-                 'float':par_float_types,
-                 'int':par_int_types,
-                 'model':par_model_types,
+PAR_TYPE_DICT = {'bool':(bool),
+                 'd0':PAR_INT_TYPES,
+                 'float':PAR_FLOAT_TYPES,
+                 'int':PAR_INT_TYPES,
+                 'model':PAR_MODEL_TYPES,
                  'path_str':(str),
-                 'FKmodel':par_fkmodel_types)
+                 'FKmodel': PAR_FKMODEL_TYPES}
 
+PAR_CASTING_DICT = {'bool': lambda x: x == '.true.',
+                    'd0': lambda x: str(int(x)) + '.d0',
+                    'float': lambda x: float(x),
+                    'int': lambda x: int(x),
+                    'model': lambda x: str(x),
+                    'path_str': lambda x: str(x),
+                    'FKmodel': lambda x: str(x)}
 
 change_parameter(in_parfile_fqp,par_key,value,out_parfile_fqp=None):
 
@@ -112,12 +119,12 @@ change_parameter(in_parfile_fqp,par_key,value,out_parfile_fqp=None):
         raise TypeError(f'arg: \'par_key\' must be of type str')
 
     par_type = None
-    if par_key not in Par_file_dict.keys():
+    if par_key not in PAR_FILE_DICT.keys():
         raise ValueError(f'Parameter: {par_key} is not a valid parameter')
     else:
-        par_type = Par_file_dict[par_key]
+        par_type = PAR_FILE_DICT[par_key]
 
-        if not isinstance(value,Par_type_dict[par_type]):
+        if not isinstance(value,PAR_TYPE_DICT[par_type]):
             raise ValueError(f'arg: \'value\' is not a valid type for parameter: {par_key}')
 
     lines = None
@@ -129,20 +136,20 @@ change_parameter(in_parfile_fqp,par_key,value,out_parfile_fqp=None):
 
     match = 'SAVE_FORWARD'
     il = 1
+    found_match = False
     for line in lines:
         wlist = line.split()
-        if len(wlist) == 0:
+        if len(wlist) == 0: # empty line
             il += 1
             continue
-        if wlist[0] == match:
-            print(f'Match: {match} at line: {il}')
-            ieq = line.find('=')
-            print('ieq:',ieq)
-            iss = line.find('.',ieq)
-            print('iss:',iss)
-            ise = line.find('.',iss+1)
-            print('ise:',ise)
-            print(f'Setting = {line[iss:ise+1]}')
+        if wlist[0].strip() == par_key:
+            val_str = line.split('=')[-1].strip()
+            if len(val_str):
+                raise Exception(f'error reading value for parameter: {par_key}')
+            
         il += 1
+
+    if not found_match:
+        raise Exception(f'error looking for parameter: {par_key}')
 
 
