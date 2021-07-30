@@ -108,12 +108,37 @@ PAR_TYPE_DICT = {'bool':(bool),
 PAR_CASTING_DICT = {'bool': lambda x: x == '.true.',
                     'd0': lambda x: str(int(x)) + '.d0',
                     'float': lambda x: float(x),
-                    'int': lambda x: int(x),
+                    'int': lambda x: str(int(x)),
                     'model': lambda x: str(x),
                     'path_str': lambda x: str(x),
                     'FKmodel': lambda x: str(x)}
 
-change_parameter(in_parfile_fqp,par_key,value,out_parfile_fqp=None):
+
+writelines(out_parfile_fqp):
+
+    try:
+        with open(out_parfile_fqp, 'w') as f:
+            f.writelines(lines)
+    except IOError as e:
+        print(e)
+
+
+readlines(in_parfile_fqp):
+
+    lines = None
+    try:
+        with open(in_parfile_fqp, 'r') as f:
+            lines = f.readlines()
+    except IOError as e:
+        print(e)
+
+    return lines
+
+    if out_par_file == None:
+        out_parfile_fqp = in_parfile_fqp
+
+
+change_parameter_in_lines(lines,par_key,par_val):
 
     if not isinstance(par_key,str):
         raise TypeError(f'arg: \'par_key\' must be of type str')
@@ -124,32 +149,52 @@ change_parameter(in_parfile_fqp,par_key,value,out_parfile_fqp=None):
     else:
         par_type = PAR_FILE_DICT[par_key]
 
-        if not isinstance(value,PAR_TYPE_DICT[par_type]):
-            raise ValueError(f'arg: \'value\' is not a valid type for parameter: {par_key}')
+        if not isinstance(par_val,PAR_TYPE_DICT[par_type]):
+            raise ValueError(f'arg: \'par_val\' is not a valid type for parameter: {par_key}')
 
-    lines = None
-    try:
-        with open(in_parfile_fqp) as f:
-            lines = f.readlines()
-    except IOError as e:
-        print(e)
-
-    match = 'SAVE_FORWARD'
-    il = 1
     found_match = False
-    for line in lines:
+    for i in range(len(lines)):
+        line = lines[i]
         wlist = line.split()
         if len(wlist) == 0: # empty line
             il += 1
             continue
         if wlist[0].strip() == par_key:
+            found_match = True
             val_str = line.split('=')[-1].strip()
             if len(val_str):
-                raise Exception(f'error reading value for parameter: {par_key}')
-            
-        il += 1
+                raise Exception(f'error reading par_val for parameter: {par_key}')
+            ival = line.find(val_str)
+            new_line = line[:ival] + PAR_CASTING_DICT[par_key](par_val)
+            lines[i] = new_line
+            break
 
     if not found_match:
         raise Exception(f'error looking for parameter: {par_key}')
 
+    return lines
 
+
+change_multiple_parameters_in_lines(lines,s_keys_vals):
+
+    if not isinstance(s_keys_vals,set):
+        raise TypeError(f'arg: \'s_keys_vals\' must be of type set')
+
+    new_lines = copy.deepcopy(lines)
+
+    for k,v in s_keys_vals:
+        new_lines = change_parameter_in_lines(new_lines,par_key,par_val)
+
+    return new_lines
+
+
+change_parameter(in_parfile_fqp,lines,par_key,par_val,out_parfile_fqp=None):
+
+    lines = readlines(in_parfile_fqp)
+
+    if out_parfile_fqp == None:
+        out_parfile_fqp = in_parfile_fqp
+
+    new_lines = change_parameter_in_lines(lines,par_key,par_val)
+
+    writelines(out_parfile_fqp)
