@@ -37,11 +37,6 @@ def _write_file(fqpname,file_str):
     except IOError as e:
         print(e)
 
-    '''
-    f = open(fqpname, 'w')
-    f.write(file_str)
-    f.close()
-    '''
 
 def _write_header(fqpname,header):
 
@@ -52,11 +47,6 @@ def _write_header(fqpname,header):
     except IOError as e:
         print(e)
 
-    '''
-    f = open(fqpname, 'wb')
-    pickle.dump(header,f)
-    f.close()
-    '''
 
 
 ################################################################################

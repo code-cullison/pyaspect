@@ -3,6 +3,26 @@ import copy
 
 import numpy as np
 
+from functools import wraps
+from time import time
+
+
+################################################################################
+#
+# Misc. Helper functions
+#
+################################################################################
+
+
+def timer(func):
+    @wraps(func)
+    def wrap(*args, **kwargs):
+        t_start = time()
+        result = func(*args, **kwargs)
+        t_end = time()
+        print(f'Function \'{func.__name__}({args},{kwargs})\' executed in {(t_end-t_start):4.3f}s\n')
+        return result
+    return wrap
 
 
 ################################################################################
@@ -37,6 +57,10 @@ def _get_file_header_paths(fqp,fname):
 
     return fqpname, header_fqpname
 
+
+def _mk_symlink(src,dst,lname):
+    if not os.path.islink(dst):
+        os.symlink(src, dst)
 
 
 ################################################################################
@@ -99,8 +123,6 @@ def station_auto_data_fname_id(s):
 
 def station_to_str(s,auto_name=False,auto_network=False):
 
-    print(f'auto_name={auto_name}')
-    print(f'auto_network={auto_network}')
     sname = s.name
     if auto_name:
         sname = station_auto_name(s)
