@@ -33,10 +33,12 @@ def timer(func):
 ################################################################################
 
 def _join_path_fname(fqp,fname):
+    fqpname = os.path.join(fqp, fname)
+    return fqpname
 
-    path = os.path.relpath(fqp, start=os.curdir)
+def _join_relpath_fname(fqp,start_fqp,fname):
+    path = os.path.relpath(fqp, start=start_fqp)
     fqpname = os.path.join(path, fname)
-
     return fqpname
 
 
@@ -50,17 +52,21 @@ def _get_header_path(fqp,fname):
 
 def _get_file_header_paths(fqp,fname):
 
-    #fqpname = _join_path_fname(fqp, fname)
-    #header_fqpname = _join_path_fname(fqp, f'pyheader.{fname.lower()}')
     fqpname = _get_file_path(fqp, fname)
     header_fqpname = _get_header_path(fqp, fname)
 
     return fqpname, header_fqpname
 
 
-def _mk_symlink(src,dst,lname):
+def _mk_symlink(src,dst):
     if not os.path.islink(dst):
         os.symlink(src, dst)
+
+
+def _mk_relative_symlink(src_fqp,start_fqp,dst_fqp):
+    if not os.path.islink(dst_fqp):
+        rel_src_path = os.path.relpath(src_fqp, start_fqp)
+        os.symlink(rel_src_path, dst_fqp)
 
 
 ################################################################################

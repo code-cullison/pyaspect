@@ -182,14 +182,14 @@ def change_parameter_in_lines(lines,par_key,par_val):
     return lines
 
 
-def change_multiple_parameters_in_lines(lines,s_keys_vals):
+def change_multiple_parameters_in_lines(lines,keys_vals_dict):
 
-    if not isinstance(s_keys_vals,set):
-        raise TypeError(f'arg: \'s_keys_vals\' must be of type set')
+    if not isinstance(keys_vals_dict,dict):
+        raise TypeError(f'arg: \'keys_vals_dict\' must be of type dict')
 
     new_lines = copy.deepcopy(lines)
 
-    for k,v in s_keys_vals:
+    for k,v in keys_vals_dict.items():
         new_lines = change_parameter_in_lines(new_lines,k,v)
 
     return new_lines
@@ -207,14 +207,14 @@ def change_parameter(in_parfile_fqp,par_key,par_val,out_parfile_fqp=None):
     writelines(out_parfile_fqp,new_lines)
 
 
-def change_multiple_parameters(in_parfile_fqp,s_keys_vals,out_parfile_fqp=None):
+def change_multiple_parameters(in_parfile_fqp,keys_vals_dict,out_parfile_fqp=None):
 
     lines = readlines(in_parfile_fqp)
 
     if out_parfile_fqp == None:
         out_parfile_fqp = in_parfile_fqp
 
-    new_lines = change_multiple_parameters_in_lines(lines,s_keys_vals)
+    new_lines = change_multiple_parameters_in_lines(lines,keys_vals_dict)
 
     writelines(out_parfile_fqp,new_lines)
 

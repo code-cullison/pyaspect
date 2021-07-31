@@ -8,6 +8,9 @@ from pyaspect.specfemio.utils import make_records
 from pyaspect.specfemio.utils import _mk_symlink
 from pyaspect.specfemio.write import write_records
 from pyaspect.specfemio.headers import *
+from pyaspect.parfile import change_multiple_parameters_in_lines
+from pyaspect.parfile import readlines
+from pyaspect.parfile import writelines
 
 
 MAX_SPEC_SRC = int(9999) # see SPECFEM3D_Cartesian manual
@@ -54,12 +57,14 @@ def _recursive_proj_dirs(dl,pdir,access_rights=0o755):
 
 def make_project(proj_name,
                  proj_root_path,
+                 parfile_fqp,
                  spec_fqp,
                  pyutils_fqp,
                  script_fqp,
                  src_list,
                  rec_list,
                  obs_rec_list=None,
+                 parfile_kv_dict=None,
                  ignore_spec_max=False):
 
         
@@ -152,23 +157,30 @@ def make_project(proj_name,
             raise Exception(excpt_str)
 
 
-
+        # set paths
         spec_bin_fqp   = os.path.join(spec_fqp, 'bin')
         spec_utils_fqp   = os.path.join(spec_fqp, 'utils')
-
         proj_fqdn = os.path.join(proj_root_path, proj_name)
+        
+        # set directory access
+        access_rights = 0o755
 
+        # check if forward or inversion
         fwd_only = True
         if obs_rec_list != None:
             fwd_only = False
 
-        access_rights = 0o755
 
+        # create records now so that headers can be checked
         l_records = make_records(l_src=src_list,l_rec=rec_list)
 
 
+        ######################################3
+        #
         #create_project_dirs and write records
-
+        #
+        ######################################3
+        
         # create main project dir
         err = _make_proj_dirs(proj_fqdn)
         
@@ -176,12 +188,24 @@ def make_project(proj_name,
         lname = 'pyutils'
         src = pyutils_fqp
         dst = os.path.join(proj_fqdn, lname)
-        _mk_symlink(src,dst,lname)
+        _mk_symlink(src,dst)
 
         lname = 'scriptutils'
         src = script_fqp
         dst = os.path.join(proj_fqdn, lname)
-        _mk_symlink(src,dst,lname)
+        _mk_symlink(src,dst)
+
+        # read and setup Par_file
+        par_keys  = ['SIMULATION_TYPE','SAVE_FORWARD','MODEL','SAVE_MESH_FILES']
+
+        par_lines = readlines(parfile_fqp)
+
+        keys_vals_dict = dict(zip(par_keys,[1,False,'gll',False]))
+        par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
+
+        if not fwd_only:
+            keys_vals_dict = dict(zip(par_keys,[1,True,'gll',False]))
+            par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
 
         #loop over number of events and create (run####) dirs
         for e in range(nevents):
@@ -197,15 +221,13 @@ def make_project(proj_name,
             # make sim links for each event dir (related to the computational node(s) filesytem
             lname = 'bin'
             src = spec_bin_fqp
-            print(f'src: {src}')
             dst = os.path.join(edir, lname)
-            _mk_symlink(src,dst,lname)
+            _mk_symlink(src,dst)
 
             lname = 'utils'
             src = spec_utils_fqp
-            print(f'src: {src}')
             dst = os.path.join(edir, lname)
-            _mk_symlink(src,dst,lname)
+            _mk_symlink(src,dst)
 
             
             # make subdirectorieds for each event
@@ -214,10 +236,18 @@ def make_project(proj_name,
             # make sub-dirs needed only in the primary run0001 dir (used for inversion, model-updating, etc.)
             if e == 0 and not fwd_only:
                 _recursive_proj_dirs(primary_dir_struct,edir)
+
+            #write Par_files in DATA dirs
+            par_fqdn = os.path.join(ddir, 'Par_file')
+            writelines(par_fqdn,par_lines)
                 
         #end for e in range(nevents)
-                
-            
+
+        # Now that directories are in place, write the src-rec records
+        # Note: the records were created before the project directories
+        #       so that parameter checking on headers could be done
+        #       before making directories.  We wait to write records so
+        #       that we can be sure the directories have been made
         write_records(proj_fqdn,l_records,
                       fname=proj_name + '_records',
                       write_record_h=True,

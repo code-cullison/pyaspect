@@ -5,6 +5,7 @@ from pyaspect.specfemio.utils import _get_file_header_paths
 from pyaspect.specfemio.utils import _join_path_fname
 from pyaspect.specfemio.utils import _get_file_path
 from pyaspect.specfemio.utils import _get_header_path
+from pyaspect.specfemio.utils import _mk_relative_symlink
 from pyaspect.specfemio.utils import forcesolution_2_str
 from pyaspect.specfemio.utils import cmtsolution_2_str
 from pyaspect.specfemio.utils import station_to_str
@@ -56,11 +57,17 @@ def _write_header(fqpname,header):
 ################################################################################
 
 
-def write_solution(fqp,solution,fname=None,postfix=None,write_h=True):
+def write_solution(fqp,
+                   solution,
+                   fname=None,
+                   postfix=None,
+                   write_h=True,
+                   mk_sym_link=False):
 
     solution_str = None
 
-    s_fname = fname
+    s_fname  = fname
+    sym_name = None
 
     if isinstance(solution,ForceSolutionHeader):
         if fname == None:
@@ -68,53 +75,38 @@ def write_solution(fqp,solution,fname=None,postfix=None,write_h=True):
         if postfix != None:
             s_fname += f'.{postfix}'
         solution_str = forcesolution_2_str(solution)
+        sym_name = 'FORCESOLUTION'
     elif isinstance(solution,CMTSolutionHeader):
         if fname == None:
             s_fname = 'CMTSOLUTION'
         if postfix != None:
             s_fname += f'.{postfix}'
         solution_str = cmtsolution_2_str(solution)
+        sym_name = 'CMTSOLUTION'
     else:
         raise Exception(f'solution type={type(solution)} does not exist')
 
     fqp_file, fqp_header = _get_file_header_paths(fqp,s_fname)
 
     _write_file(fqp_file,solution_str)
-    _write_header(fqp_header,solution)
+
+    if write_h:
+        _write_header(fqp_header,solution)
+
+    if mk_sym_link and s_fname != 'FORCESOLUTION' and s_fname != 'CMTSOLUTION':
+        dst = _join_path_fname(fqp, sym_name)
+        _mk_relative_symlink(fqp_file,fqp,dst)
 
 
 def write_cmtsolution(fqp,cmts,fname='CMTSOLUTION'):
-
     write_solution(fqp=fqp,solution=cmts,fname=fname,write_h=write_h)
-
-    '''
-    cmtlines_str = cmtsolution_2_str(cmts)
-
-    fqp_file, fqp_header = _get_file_header_paths(fqp,fname)
-
-    _write_file(fqp_file,cmtlines_str)
-    _write_header(fqp_header,cmts)
-    '''
 
 
 def write_forcesolution(fqp,fs,fname='FORCESOLUTION',write_h=True):
-
     write_solution(fqp=fqp,solution=fs,fname=fname,write_h=write_h)
-
-    '''
-    forcelines_str = forcesolution_2_str(fs)
-
-    fqp_file, fqp_header = _get_file_header_paths(fqp,fname)
-
-    _write_file(fqp_file,forcelines_str)
-
-    if write_h:
-        _write_header(fqp_header,fs)
-    '''
 
 
 def write_grouped_forcesolutions(fqp,l_fs,fname='FORCESOLUTION',write_h=True):
-
     for s in l_fs:
         write_forcesolution(fqp,s,fname=f'FORCESOLUTION.{s.sid}',write_h=write_h)
 
@@ -132,7 +124,8 @@ def write_stations(fqp,
                    fname='STATIONS',
                    write_h=True,
                    auto_name=False,
-                   auto_network=False):
+                   auto_network=False,
+                   mk_sym_link=False):
 
     str_stations  = None
     group_headers = None
@@ -154,6 +147,10 @@ def write_stations(fqp,
     
     if write_h:
         _write_header(fqp_header,group_headers)
+
+    if mk_sym_link and fname != 'STATIONS':
+        dst = _join_path_fname(fqp, 'STATIONS')
+        _mk_relative_symlink(fqp_file,fqp,dst)
 
 
 
@@ -199,7 +196,10 @@ def write_record(proj_fqp,
         s = solutions[i]
         if s.sid != i:
             raise Exception(f'solution.sid is not the correct value')
-        write_solution(data_fqp,s,postfix=f'sid{i}',write_h=write_h)
+        mk_sym_link = False
+        if i == 0: #write SOLUTION symlink
+            mk_sym_link = True
+        write_solution(data_fqp,s,postfix=f'sid{i}',write_h=write_h,mk_sym_link=mk_sym_link)
 
     # write station files and headers
     for i in range(len(station_range)):
@@ -218,6 +218,9 @@ def write_record(proj_fqp,
             data_fname = station_auto_data_fname_id(s)
             s.data_fqdn = _join_path_fname(edir_fqp,f'/SYN/{data_fname}')
         
+        mk_sym_link = False
+        if i == 0: #write STATIONS symlink
+            mk_sym_link = True
 
         s_fname = f'STATIONS.sid{i}'
         write_stations(data_fqp,
@@ -225,7 +228,8 @@ def write_record(proj_fqp,
                        fname=s_fname,
                        write_h=write_h,
                        auto_name=auto_name,
-                       auto_network=auto_network)
+                       auto_network=auto_network,
+                       mk_sym_link=mk_sym_link)
 
     # write record header
     if write_record_h:
