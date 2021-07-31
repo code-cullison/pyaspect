@@ -238,7 +238,7 @@ def write_record(proj_fqp,
 
 def write_records(proj_fqp,
                   l_records,
-                  fname='proj_record',
+                  fname='proj_records',
                   write_record_h=True,
                   write_h=True,
                   auto_name=False,

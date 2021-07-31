@@ -249,7 +249,7 @@ def make_project(proj_name,
         #       before making directories.  We wait to write records so
         #       that we can be sure the directories have been made
         write_records(proj_fqdn,l_records,
-                      fname=proj_name + '_records',
+                      fname='proj_records',
                       write_record_h=True,
                       write_h=True,
                       auto_name=True,
