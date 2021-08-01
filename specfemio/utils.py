@@ -182,7 +182,7 @@ def make_station_half_cross_members(station=None,delta=None):
 
     if delta < 0:
         l_gid += 3
-    
+   
     # add x + delta
     station_xp = copy.deepcopy(station)
     station_xp.lon_xc += delta
@@ -226,10 +226,11 @@ def make_station_cross_group(station=None,delta=None):
     # add "central" member (no coordinate change)
     cpy_station = copy.deepcopy(station)
     cpy_station.gid = station.gid = 0
+    cpy_station['delta'] = delta
     station_group.append(cpy_station) 
     
     # add pos/neg coordinate members
-    station_group += make_station_cross_members(station,delta)
+    station_group += make_station_cross_members(cpy_station,delta)
 
     return station_group
 
@@ -241,10 +242,11 @@ def make_station_half_cross_group(station=None,delta=None):
     # add "central" member (no coordinate change)
     cpy_station = copy.deepcopy(station)
     cpy_station.gid = station.gid = 0
+    cpy_station['delta'] = delta
     station_group.append(cpy_station) 
     
     # add pos/neg coordinate members
-    station_group += make_station_half_cross_members(station,delta)
+    station_group += make_station_half_cross_members(cpy_station,delta)
 
     return station_group
 
