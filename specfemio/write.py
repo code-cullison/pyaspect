@@ -164,7 +164,7 @@ def write_record(proj_fqp,
                  record,
                  fname='event_record',
                  write_record_h=True,
-                 write_h=True,
+                 write_h=False,
                  auto_name=False,
                  auto_network=False):
 
@@ -240,7 +240,7 @@ def write_records(proj_fqp,
                   l_records,
                   fname='proj_records',
                   write_record_h=True,
-                  write_h=True,
+                  write_h=False,
                   auto_name=False,
                   auto_network=False):
 
@@ -257,8 +257,8 @@ def write_records(proj_fqp,
         write_record(proj_fqp,
                      r,
                      fname=f'event_record',
-                     write_record_h=True,
-                     write_h=True,
+                     write_record_h=write_record_h,
+                     write_h=write_h,
                      auto_name=auto_name,
                      auto_network=auto_network)
 

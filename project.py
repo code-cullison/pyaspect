@@ -6,6 +6,7 @@ import numpy as np
 
 from pyaspect.specfemio.utils import make_records
 from pyaspect.specfemio.utils import _mk_symlink
+from pyaspect.specfemio.utils import _copy_recursive_dir
 from pyaspect.specfemio.write import write_records
 from pyaspect.specfemio.headers import *
 from pyaspect.parfile import change_multiple_parameters_in_lines
@@ -18,11 +19,13 @@ MAX_SPEC_SRC = int(9999) # see SPECFEM3D_Cartesian manual
 # list of directories need for every event
 common_dir_struct = {'DATA': {},
                      'OUTPUT_FILES' : {'DATABASES_MPI':{}},
-                     'SEM': {},
-                     'OBS': {},
                      'SYN': {},
-                     'FILT_OBS': {},
                      'FILT_SYN': {} }
+
+# extra common dirs for fwi
+common_fwi_dir_struct = {'SEM': {},
+                         'OBS': {},
+                         'FILT_OBS': {} }
 
 # list of directories only needed for the primary run0001 dir
 primary_dir_struct= {'INPUT_GRADIENT': {},
@@ -58,6 +61,7 @@ def _recursive_proj_dirs(dl,pdir,access_rights=0o755):
 def make_project(proj_name,
                  proj_root_path,
                  parfile_fqp,
+                 mesh_fqp,
                  spec_fqp,
                  pyutils_fqp,
                  script_fqp,
@@ -65,6 +69,7 @@ def make_project(proj_name,
                  rec_list,
                  obs_rec_list=None,
                  parfile_kv_dict=None,
+                 copy_mesh=False,
                  ignore_spec_max=False):
 
         
@@ -232,6 +237,10 @@ def make_project(proj_name,
             
             # make subdirectorieds for each event
             _recursive_proj_dirs(common_dir_struct,edir)
+
+            # make extra fwi dirs if needed
+            if not fwd_only:
+                _recursive_proj_dirs(common_fwi_dir_struct,edir)
                 
             # make sub-dirs needed only in the primary run0001 dir (used for inversion, model-updating, etc.)
             if e == 0 and not fwd_only:
@@ -248,12 +257,22 @@ def make_project(proj_name,
         #       so that parameter checking on headers could be done
         #       before making directories.  We wait to write records so
         #       that we can be sure the directories have been made
-        write_records(proj_fqdn,l_records,
+        write_records(proj_fqdn,
+                      l_records,
                       fname='proj_records',
                       write_record_h=True,
-                      write_h=True,
+                      write_h=False,
                       auto_name=True,
                       auto_network=True)
             
                 
+        # finally we copy or sym-link the MESH directory. We 
+        # wait becuase if copying this can take a lot of time,
+        # so it's smart to make sure everything before this 
+        # executes successfully
+        mesh_dst_fqp = os.path.join(proj_fqdn, 'MESH-default')
+        if copy_mesh:
+            _copy_recursive_dir(mesh_fqp,mesh_dst_fqp)
+        else:
+            _mk_symlink(mesh_fqp,mesh_dst_fqp)
 

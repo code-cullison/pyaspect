@@ -1,5 +1,6 @@
 import os
 import copy
+import shutil
 
 import numpy as np
 
@@ -67,6 +68,12 @@ def _mk_relative_symlink(src_fqp,start_fqp,dst_fqp):
     if not os.path.islink(dst_fqp):
         rel_src_path = os.path.relpath(src_fqp, start_fqp)
         os.symlink(rel_src_path, dst_fqp)
+
+def _copy_recursive_dir(src_fqp,dst_fqp):
+    try:
+        shutil.copytree(src_fqp,dst_fqp)
+    except Exception as e:
+        print(e)
 
 
 ################################################################################
