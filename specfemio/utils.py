@@ -335,7 +335,7 @@ def get_xyz_coords_from_solution(s):
     return get_xyz_coords_from_header(s)
 
 
-def get_xyz_coords_from_header_list(l_headers):
+def get_xyz_coords_from_header_list(l_headers,unique=False):
 
     xyz = np.zeros((len(l_headers),3))
     
@@ -343,7 +343,13 @@ def get_xyz_coords_from_header_list(l_headers):
         h = l_headers[i]
         xyz[i,:] = get_xyz_coords_from_header(h)[:]
 
+    if unique:
+        xyz = np.unique(tuple(xyz),axis=0)
+
     return xyz
+
+def get_unique_xyz_coords_from_header_list(l_headers):
+    return get_xyz_coords_from_header_list(l_headers,unique=True)
 
 
 def get_xyz_coords_from_station_list(l_stations):
@@ -354,16 +360,29 @@ def get_xyz_coords_from_solution_list(l_stations):
     return get_xyz_coords_from_header_list(l_stations)
 
 
-def get_xyz_coords_from_headers_except(l_headers,key=None,val=None):
+def get_unique_xyz_coords_from_station_list(l_stations):
+    return get_unique_xyz_coords_from_header_list(l_stations)
+
+
+def get_unique_xyz_coords_from_solution_list(l_stations):
+    return get_unique_xyz_coords_from_header_list(l_stations)
+
+
+def get_xyz_coords_from_headers_except(l_headers,key=None,val=None,unique=False):
 
     p_headers = prune_header_list(l_headers,key,val)
 
-    return get_xyz_coords_from_header_list(p_headers)
-
+    return get_xyz_coords_from_header_list(p_headers,unique=unique)
 
 def get_xyz_coords_from_station_list_except(l_stations,key=None,val=None):
     return get_xyz_coords_from_headers_except(l_stations,key=key,val=val)
 
+
+def get_unique_xyz_coords_from_headers_except(l_headers,key=None,val=None):
+    return get_xyz_coords_from_headers_except(l_stations,key=key,val=val,unique=True)
+
+def get_unique_xyz_coords_from_station_list_except(l_stations,key=None,val=None):
+    return get_xyz_coords_from_headers_except(l_stations,key=key,val=val,unique=True)
 
 
 ################################################################################
@@ -437,6 +456,69 @@ def make_grouped_triplet_force_solution_headers(solutions=None):
 
 ################################################################################
 #
+# Functions for creating Reciprocal Stations and Solution lists 
+#
+################################################################################
+
+def make_grouped_reciprocal_station_headers_from_cmt_list(l_cmt,delta,full_cross=True):
+
+    from pyaspect.specfemio.headers import StationHeader
+
+    # Make the main stations
+    l_vrecs = []
+    for cmt in l_cmt:
+        tr_bname = 'tr'
+        new_r = StationHeader(name=tr_bname,
+                              network='NL', #FIXME
+                              lat_yc=cmt.lat_yc,
+                              lon_xc=cmt.lon_xc,
+                              elevation=0.0,
+                              depth=cmt.depth,
+                              trid=cmt.eid)
+        l_vrecs.append(new_r)
+
+    # Make the group cross stations for the derivatives
+    return make_grouped_station_headers(stations=l_vrecs,delta=delta,full_cross=full_cross)
+
+def make_grouped_cross_reciprocal_station_headers_from_cmt_list(l_cmt,delta):
+    return make_grouped_reciprocal_station_headers_from_cmt_list(l_cmt,delta,full_cross=True)
+
+def make_grouped_half_cross_reciprocal_station_headers_from_cmt_list(l_cmt,delta):
+    return make_grouped_reciprocal_station_headers_from_cmt_list(l_cmt,delta,full_cross=False)
+
+
+def make_grouped_reciprocal_force_solution_triplet_headers_from_rec_list(l_rec):
+
+    import datetime
+    from pyaspect.specfemio.headers import ForceSolutionHeader
+
+    # First we make a single virtual source per receiver
+    l_vsrcs = []
+    for rec in l_rec:
+
+        #NOTE!!!! the depth is set to the NEGATIVE (makes it positive) due to sign convention
+        new_s = ForceSolutionHeader(ename=f'Event-{str(rec.trid).zfill(4)}',
+                                    lat_yc=rec.lat_yc,
+                                    lon_xc=rec.lon_xc,
+                                    depth=rec.depth,
+                                    tshift=0.0,
+                                    date=datetime.datetime.now(),
+                                    f0=0.0,
+                                    factor_fs=1,
+                                    comp_src_EX=1,
+                                    comp_src_NY=0,
+                                    comp_src_Zup=0,
+                                    proj_id=0,
+                                    eid=rec.trid,
+                                    sid=0)
+        l_vsrcs.append(new_s)
+
+    # Second: Make a force "triplets" used for calculationg moment tensor derivatives
+    return make_grouped_triplet_force_solution_headers(solutions=l_vsrcs)
+
+
+################################################################################
+#
 # Functions for creating Records and lists of Records
 #
 ################################################################################
@@ -497,3 +579,5 @@ def make_records(l_src=None,l_rec=None):
             l_records.append(record)
 
     return l_records
+
+
