@@ -453,6 +453,35 @@ def make_grouped_triplet_force_solution_headers(solutions=None):
     return triplet_solution_list
 
 
+################################################################################
+#
+# Functions for replicating Stations by Solution list 
+#
+################################################################################
+
+
+def make_replicated_station_headers_from_src_list(l_srcs,l_recs):
+
+    from pyaspect.specfemio.headers import SolutionHeader
+    from pyaspect.specfemio.headers import StationHeader
+
+    if not isinstance(l_srcs[0],SolutionHeader):
+        raise TypeError('l_srcs[:] elements must be of type:{type(SolutionHeader}')
+
+    if not isinstance(l_recs[0],StationHeader):
+        raise TypeError('l_recs[:] elements must be of type:{type(StationHeader}')
+
+    l_grp_recs_by_srcs = []
+    for i in range(len(l_srcs)):
+        src = l_srcs[i]
+        cpy_recs = copy.deepcopy(l_recs)
+        for rec in cpy_recs:
+            rec.sid = src.sid
+            rec.eid = src.eid
+        l_grp_recs_by_srcs.append(cpy_recs)
+
+    return l_grp_recs_by_srcs
+
 
 ################################################################################
 #
@@ -517,6 +546,32 @@ def make_grouped_reciprocal_force_solution_triplet_headers_from_rec_list(l_rec):
     return make_grouped_triplet_force_solution_headers(solutions=l_vsrcs)
 
 
+def make_replicated_reciprocal_station_headers_from_src_triplet_list(l_vsrc,l_vrec):
+
+    from pyaspect.specfemio.headers import ForceSolutionHeader
+    from pyaspect.specfemio.headers import StationHeader
+
+    if not isinstance(l_vsrc[0][0],ForceSolutionHeader):
+        raise TypeError('l_vsrc[:][:] elements must be of type:{type(ForceSolutionHeader}')
+
+    if not isinstance(l_vrec[0][0],StationHeader):
+        raise TypeError('l_vrec[:][:] elements must be of type:{type(StationHeader}')
+
+    l_grp_vrecs_by_vsrcs = []
+    for i in range(len(l_vsrc)):
+        vsgrp = l_vsrc[i]
+        vrecs_per_vsrc = []
+        for vsrc in vsgrp:
+            cpy_vrecs = copy.deepcopy(flatten_grouped_headers(l_vrec))
+            for vrec in cpy_vrecs:
+                vrec.sid = vsrc.sid
+                vrec.eid = vsrc.eid
+            vrecs_per_vsrc.append(cpy_vrecs)
+        l_grp_vrecs_by_vsrcs.append(vrecs_per_vsrc)
+
+    return l_grp_vrecs_by_vsrcs
+
+
 ################################################################################
 #
 # Functions for creating Records and lists of Records
@@ -548,7 +603,7 @@ def make_records(l_src=None,l_rec=None):
         if not isinstance(l_rec[0][0],list):
             raise Exception('Sources are grouped, but receivers appear not to be.')
         if not isinstance(l_rec[0][0][0],StationHeader):
-            raise TypeError('r_src[:][:][:] elements must be of type:{type(StationHeader}')
+            raise TypeError('l_rec[:][:][:] elements must be of type:{type(StationHeader}')
         
         for i in range(len(l_src)):
             sgrp = l_src[i]
@@ -567,7 +622,7 @@ def make_records(l_src=None,l_rec=None):
         if not isinstance(l_rec[0],list):
             raise Exception('l_rec is not complient with l_src')
         if not isinstance(l_rec[0][0],StationHeader):
-            raise TypeError('r_src[:][:] elements must be of type:{type(StationHeader}')
+            raise TypeError('l_rec[:][:] elements must be of type:{type(StationHeader}')
 
         for i in range(len(l_src)):
             s = l_src[i]
