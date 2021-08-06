@@ -201,15 +201,15 @@ def make_project(proj_name,
         _mk_symlink(src,dst)
 
         # read and setup Par_file
-        par_keys  = ['SIMULATION_TYPE','SAVE_FORWARD','MODEL','SAVE_MESH_FILES']
+        par_keys = ['SIMULATION_TYPE','SAVE_FORWARD','MODEL','SAVE_MESH_FILES','USE_BINARY_FOR_SEISMOGRAMS']
 
         par_lines = readlines(parfile_fqp)
 
-        keys_vals_dict = dict(zip(par_keys,[1,False,'gll',False]))
+        keys_vals_dict = dict(zip(par_keys,[1,False,'gll',False,True]))
         par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
 
         if not fwd_only:
-            keys_vals_dict = dict(zip(par_keys,[1,True,'gll',False]))
+            keys_vals_dict = dict(zip(par_keys,[1,True,'gll',False,True]))
             par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
 
         #loop over number of events and create (run####) dirs

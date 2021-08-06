@@ -1011,17 +1011,25 @@ class RecordHeader(Header):
     def __init__(self, name=None,solutions_h=None,stations_h=None,proj_id=0,rid=0,iter_id=0):
         super(RecordHeader,self).__init__(name=name)
 
+        l_solutions_h = solutions_h
+        if not isinstance(solutions_h,list):
+            l_solutions_h = [solutions_h]
+
         check_all = False
-        check_all = all(isinstance(s,SolutionHeader) for s in list(solutions_h))
+        check_all = all(isinstance(s,SolutionHeader) for s in l_solutions_h)
         if not check_all:
             raise Exception('elements in arg: \'solutions_h\' must be of type SolutionHeader')
 
-        check_s = list(solutions_h)[0]
-        check_all = all(type(s) == type(check_s) for s in list(solutions_h))
+        check_s = l_solutions_h[0]
+        check_all = all(type(s) == type(check_s) for s in l_solutions_h)
         if not check_all:
             raise Exception('all elements in arg: \'solutions_h\' must be of type {type(check_s)}')
 
-        check_all = all(isinstance(s,StationHeader) for s in list(stations_h))
+        l_stations_h = stations_h
+        if not isinstance(stations_h,list):
+            l_stations_h = [stations_h]
+        
+        check_all = all(isinstance(s,StationHeader) for s in l_stations_h)
         if not check_all:
             raise Exception('elements in arg: \'stations_h\' must be of type StationHeader')
 
@@ -1033,15 +1041,15 @@ class RecordHeader(Header):
         self['iter_id'] = iter_id
 
         #FIXME: see below. is this a good/safe trick?
-        self._solution_mod_name = solutions_h[0].__module__
-        self._solution_cls_name = solutions_h[0].__class__.__name__
+        self._solution_mod_name = l_solutions_h[0].__module__
+        self._solution_cls_name = l_solutions_h[0].__class__.__name__
 
-        self._station_mod_name = stations_h[0].__module__
-        self._station_cls_name = stations_h[0].__class__.__name__
+        self._station_mod_name = l_stations_h[0].__module__
+        self._station_cls_name = l_stations_h[0].__class__.__name__
 
 
-        self['solutions_df'] = pd.DataFrame.from_records(solutions_h, index=['eid','sid'])
-        self['stations_df']  = pd.DataFrame.from_records(stations_h, index=['eid','sid','trid','gid'])
+        self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['eid','sid'])
+        self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['eid','sid','trid','gid'])
 
         self['added_solution_header_words'] = []
         self['added_station_header_words']  = []
