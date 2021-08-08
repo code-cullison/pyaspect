@@ -579,7 +579,7 @@ def make_replicated_reciprocal_station_headers_from_src_triplet_list(l_vsrc,l_vr
 ################################################################################
 
 
-def make_records(l_src=None,l_rec=None):
+def make_record_headers(l_src=None,l_rec=None):
 
     if not isinstance(l_src,list):
         raise Exception('l_src must be a list type')

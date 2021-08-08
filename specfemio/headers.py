@@ -594,7 +594,7 @@ class ForceSolutionHeader(SolutionHeader):
                 args_dict[rkey] = h_dict[rkey]
                 del h_dict[rkey]
 
-        # make StationHeader
+        # make ForceSolutionHeader
         new_header = ForceSolutionHeader(**args_dict)
 
         # insert additional key: value pairs
@@ -833,7 +833,7 @@ class CMTSolutionHeader(SolutionHeader):
                                        dip=mt_args_dict['dip'],
                                        rake=mt_args_dict['rake'])
 
-        # make StationHeader
+        # make CMTSolutionHeader
         new_header = CMTSolutionHeader(**args_dict)
 
         # insert additional key: value pairs
@@ -1051,6 +1051,12 @@ class RecordHeader(Header):
         self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['eid','sid'])
         self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['eid','sid','trid','gid'])
 
+        ne_stat = self.stations_df.index.get_level_values('eid').nunique()
+        ne_solu = self.stations_df.index.get_level_values('eid').nunique()
+        if ne_stat != ne_solu:
+            raise Exception('Number of events does not match between Solutions and Stations ')
+
+
         self['added_solution_header_words'] = []
         self['added_station_header_words']  = []
 
@@ -1091,6 +1097,54 @@ class RecordHeader(Header):
         out_str  = f'Solution Header:\n{self.solutions_df.__repr__()}\n\n'
         out_str += f'Station Headers:\n {self.stations_df.__repr__()}'
         return out_str
+
+    def __getitem__(self, kslice):
+
+        if isinstance(kslice, str):
+            return super(RecordHeader, self).__getitem__(kslice)
+
+        nslice = 1
+        if not isinstance(kslice,slice) and not isinstance(kslice,tuple):
+            raise Exception(f'indexer must be a slice object')
+        if isinstance(kslice,tuple):
+            if not isinstance(kslice[0],slice):
+                raise Exception(f'indexr(s) must be a slice object or objects')
+            nslice = len(kslice)
+
+        if 4 < nslice:
+            raise Exception(f'too many indexers')
+            
+        c_solu_df = self.solutions_df.copy()
+        c_stat_df = self.stations_df.copy()
+
+        idx = pd.IndexSlice
+
+        if nslice == 1:
+            c_solu_df = c_solu_df.loc[idx[kslice],:]
+        else:
+            c_solu_df = c_solu_df.loc[idx[kslice[0:2]],:]
+
+        c_solu_df.reset_index(inplace=True) #index values included in header
+
+        c_stat_df = c_stat_df.loc[idx[kslice],:]
+        c_stat_df.reset_index(inplace=True) #index values included in header
+
+        
+        # Without above reset_index, each series(row) is missing index column vals
+        HeaderCls = self._get_header_class(is_stations=False)
+        slice_sol_h = [HeaderCls.from_series(row) for index, row in c_solu_df.iterrows()]
+
+        HeaderCls = self._get_header_class(is_stations=True)
+        slice_stat_h = [HeaderCls.from_series(row) for index, row in c_stat_df.iterrows()]
+
+
+        return RecordHeader(name=self.name,
+                            solutions_h=slice_sol_h,
+                            stations_h=slice_stat_h,
+                            proj_id=self.proj_id,
+                            rid=self.rid,
+                            iter_id=self.iter_id)
+
 
 
     def _get_reset_df(self,key=None,value=None,is_stations=True):
@@ -1145,6 +1199,29 @@ class RecordHeader(Header):
 
     def get_stations_header_list(self, key=None, value=None):
         return self._get_list_from_df(key=key,value=value,is_stations=True)
+
+    '''
+    def _get_list_from_df(self, key=None, value=None, is_stations=True):
+
+        c_df = self._get_reset_df(key=key,value=value,is_stations=is_stations)
+
+        #FIXME: Q. Is this a good trick or an ugly trick?
+        #       A. It's a trick.
+        HeaderCls = self._get_header_class(is_stations=is_stations)
+
+        header_list = [HeaderCls.from_series(row) for index, row in c_df.iterrows()]
+
+        del c_df
+
+        return header_list
+
+
+    def get_solutions_header_list(self, key=None, value=None):
+        return self._get_list_from_df(key=key,value=value,is_stations=False)
+
+    def get_stations_header_list(self, key=None, value=None):
+        return self._get_list_from_df(key=key,value=value,is_stations=True)
+    '''
 
 
     def _add_header_word(self, key, h_values, is_stations=True):
@@ -1203,4 +1280,8 @@ class RecordHeader(Header):
     @property
     def added_station_header_words(self):
         return self['added_station_header_words']
+
+    @property
+    def nevents(self):
+        return nevents
 

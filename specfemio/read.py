@@ -51,3 +51,15 @@ def read_stations(fqp,fname='STATIONS'):
     fqp_file, fqp_header = _get_file_header_paths(fqp,fname)
     
     return  _read_headers(fqp_header)
+
+
+################################################################################
+#
+# Functions for  SPECFEM3D Records 
+#
+################################################################################
+
+
+def read_records(fqp):
+    return  _read_headers(fqp)
+
