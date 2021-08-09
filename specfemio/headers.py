@@ -1048,13 +1048,22 @@ class RecordHeader(Header):
         self._station_cls_name = l_stations_h[0].__class__.__name__
 
 
-        self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['eid','sid'])
-        self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['eid','sid','trid','gid'])
+        self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['proj_id','eid','sid'])
+        self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['proj_id','eid','sid','trid','gid'])
 
+        ne_solu = self.solutions_df.index.get_level_values('eid').nunique()
         ne_stat = self.stations_df.index.get_level_values('eid').nunique()
-        ne_solu = self.stations_df.index.get_level_values('eid').nunique()
         if ne_stat != ne_solu:
-            raise Exception('Number of events does not match between Solutions and Stations ')
+            raise Exception('Number of events does not match between Solutions and Stations')
+
+        self['nevents'] = ne_stat
+
+        idx = pd.IndexSlice
+        for ie in range(self.nevents):
+            ns_solu = self.solutions_df.loc[idx[:,ie,:],:].index.get_level_values('sid').nunique()
+            ns_stat = self.stations_df.loc[idx[:,ie,:,:,:],:].index.get_level_values('sid').nunique()
+            if ns_stat != ns_solu:
+                raise Exception(f'For event-{ie}: number of sid\'s differs between Solutions and Stations')
 
 
         self['added_solution_header_words'] = []
@@ -1121,8 +1130,10 @@ class RecordHeader(Header):
 
         if nslice == 1:
             c_solu_df = c_solu_df.loc[idx[kslice],:]
-        else:
+        elif nslice == 2:
             c_solu_df = c_solu_df.loc[idx[kslice[0:2]],:]
+        else:
+            c_solu_df = c_solu_df.loc[idx[kslice[0:3]],:]
 
         c_solu_df.reset_index(inplace=True) #index values included in header
 
@@ -1249,6 +1260,16 @@ class RecordHeader(Header):
         self._add_header_word(key=key,h_values=h_values,is_stations=False)
 
 
+    def get_event_nsolutions(self,ievent):
+        idx = pd.IndexSlice
+        ns_solu = self.solutions_df.loc[idx[:,ievent,:],:].index.get_level_values('sid').nunique()
+        ns_stat = self.stations_df.loc[idx[:,ievent,:,:,:],:].index.get_level_values('sid').nunique()
+        if ns_stat != ns_solu:
+            raise Exception(f'For event-{ievent}: number of sid\'s differs between Solutions and Stations')
+
+        return ns_stat
+
+
     @property
     def solution_type(self):
         return self['solution_type']
@@ -1283,5 +1304,6 @@ class RecordHeader(Header):
 
     @property
     def nevents(self):
-        return nevents
+        return self['nevents']
+
 
