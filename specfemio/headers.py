@@ -1048,8 +1048,8 @@ class RecordHeader(Header):
         self._station_cls_name = l_stations_h[0].__class__.__name__
 
 
-        self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['proj_id','eid','sid'])
-        self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['proj_id','eid','sid','trid','gid'])
+        self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['eid','sid'])
+        self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['eid','sid','trid','gid'])
 
         ne_solu = self.solutions_df.index.get_level_values('eid').nunique()
         ne_stat = self.stations_df.index.get_level_values('eid').nunique()
@@ -1060,8 +1060,8 @@ class RecordHeader(Header):
 
         idx = pd.IndexSlice
         for ie in range(self.nevents):
-            ns_solu = self.solutions_df.loc[idx[:,ie,:],:].index.get_level_values('sid').nunique()
-            ns_stat = self.stations_df.loc[idx[:,ie,:,:,:],:].index.get_level_values('sid').nunique()
+            ns_solu = self.solutions_df.loc[idx[ie,:],:].index.get_level_values('sid').nunique()
+            ns_stat = self.stations_df.loc[idx[ie,:,:,:],:].index.get_level_values('sid').nunique()
             if ns_stat != ns_solu:
                 raise Exception(f'For event-{ie}: number of sid\'s differs between Solutions and Stations')
 
@@ -1098,16 +1098,17 @@ class RecordHeader(Header):
 
 
     def __str__(self):
-        out_str  = f'Solution Header:\n{self.solutions_df}\n\n'
-        out_str += f'Station Headers:\n {self.stations_df}'
+        out_str  = f'Solution Header(s):\n{self.solutions_df}\n\n'
+        out_str += f'Station Header(s):\n {self.stations_df}'
         return out_str
 
     def __repr__(self):
-        out_str  = f'Solution Header:\n{self.solutions_df.__repr__()}\n\n'
-        out_str += f'Station Headers:\n {self.stations_df.__repr__()}'
+        out_str  = f'Solution Header(s):\n{self.solutions_df.__repr__()}\n\n'
+        out_str += f'Station Header(s):\n {self.stations_df.__repr__()}'
         return out_str
 
     def __getitem__(self, kslice):
+
 
         if isinstance(kslice, str):
             return super(RecordHeader, self).__getitem__(kslice)
@@ -1116,8 +1117,6 @@ class RecordHeader(Header):
         if not isinstance(kslice,slice) and not isinstance(kslice,tuple):
             raise Exception(f'indexer must be a slice object')
         if isinstance(kslice,tuple):
-            if not isinstance(kslice[0],slice):
-                raise Exception(f'indexr(s) must be a slice object or objects')
             nslice = len(kslice)
 
         if 4 < nslice:
@@ -1130,23 +1129,29 @@ class RecordHeader(Header):
 
         if nslice == 1:
             c_solu_df = c_solu_df.loc[idx[kslice],:]
-        elif nslice == 2:
+        else: 
             c_solu_df = c_solu_df.loc[idx[kslice[0:2]],:]
-        else:
-            c_solu_df = c_solu_df.loc[idx[kslice[0:3]],:]
 
-        c_solu_df.reset_index(inplace=True) #index values included in header
+        if not isinstance(c_solu_df,pd.Series):
+            c_solu_df.reset_index(inplace=True) #index values included in header
 
         c_stat_df = c_stat_df.loc[idx[kslice],:]
-        c_stat_df.reset_index(inplace=True) #index values included in header
+        if not isinstance(c_stat_df,pd.Series):
+            c_stat_df.reset_index(inplace=True) #index values included in header
 
         
         # Without above reset_index, each series(row) is missing index column vals
         HeaderCls = self._get_header_class(is_stations=False)
-        slice_sol_h = [HeaderCls.from_series(row) for index, row in c_solu_df.iterrows()]
+        if not isinstance(c_solu_df,pd.Series):
+            slice_sol_h = [HeaderCls.from_series(row) for index, row in c_solu_df.iterrows()]
+        else:
+            slice_sol_h = HeaderCls.from_series(c_solu_df)
 
         HeaderCls = self._get_header_class(is_stations=True)
-        slice_stat_h = [HeaderCls.from_series(row) for index, row in c_stat_df.iterrows()]
+        if not isinstance(c_stat_df,pd.Series):
+            slice_stat_h = [HeaderCls.from_series(row) for index, row in c_stat_df.iterrows()]
+        else:
+            slice_stat_h = HeaderCls.from_series(c_stat_df)
 
 
         return RecordHeader(name=self.name,
@@ -1210,29 +1215,6 @@ class RecordHeader(Header):
 
     def get_stations_header_list(self, key=None, value=None):
         return self._get_list_from_df(key=key,value=value,is_stations=True)
-
-    '''
-    def _get_list_from_df(self, key=None, value=None, is_stations=True):
-
-        c_df = self._get_reset_df(key=key,value=value,is_stations=is_stations)
-
-        #FIXME: Q. Is this a good trick or an ugly trick?
-        #       A. It's a trick.
-        HeaderCls = self._get_header_class(is_stations=is_stations)
-
-        header_list = [HeaderCls.from_series(row) for index, row in c_df.iterrows()]
-
-        del c_df
-
-        return header_list
-
-
-    def get_solutions_header_list(self, key=None, value=None):
-        return self._get_list_from_df(key=key,value=value,is_stations=False)
-
-    def get_stations_header_list(self, key=None, value=None):
-        return self._get_list_from_df(key=key,value=value,is_stations=True)
-    '''
 
 
     def _add_header_word(self, key, h_values, is_stations=True):
