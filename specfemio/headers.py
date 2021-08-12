@@ -1052,18 +1052,27 @@ class RecordHeader(Header):
         self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['eid','sid','trid','gid'])
 
         ne_solu = self.solutions_df.index.get_level_values('eid').nunique()
+        mine_solu = self.solutions_df.index.get_level_values('eid').min()
         ne_stat = self.stations_df.index.get_level_values('eid').nunique()
+        mine_stat = self.solutions_df.index.get_level_values('eid').min()
+
         if ne_stat != ne_solu:
             raise Exception('Number of events does not match between Solutions and Stations')
 
-        self['nevents'] = ne_stat
+        if mine_stat != mine_solu:
+            raise Exception('event id\'s do not match between Solutions and Stations')
+
+        self['nevents'] = ne_solu
 
         idx = pd.IndexSlice
-        for ie in range(self.nevents):
+        #for ie in range(self.nevents):
+        for ie in range(mine_solu,ne_solu):
             ns_solu = self.solutions_df.loc[idx[ie,:],:].index.get_level_values('sid').nunique()
             ns_stat = self.stations_df.loc[idx[ie,:,:,:],:].index.get_level_values('sid').nunique()
             if ns_stat != ns_solu:
                 raise Exception(f'For event-{ie}: number of sid\'s differs between Solutions and Stations')
+
+        self['nsrc_per_event'] = ns_solu
 
 
         self['added_solution_header_words'] = []
@@ -1107,53 +1116,151 @@ class RecordHeader(Header):
         out_str += f'Station Header(s):\n {self.stations_df.__repr__()}'
         return out_str
 
-    def __getitem__(self, kslice):
 
+    # Helper function turns a sequence of boolean indices into
+    # a single boolean index for a dataframe
+    def _slice_to_bool(self,l_slice):
+        if not isinstance(l_slice,list):
+            raise Exception('arugment must be a list type')
+        if len(l_slice) == 0:
+            raise Exception('arugment must be a list of at least len=1')
+        if len(l_slice) == 1:
+            return l_slice[0]
+        else:
+            ibool = l_slice[0]
+            for i in range(1,len(l_slice)):
+                ibool = ibool & l_slice[i]
+            return ibool
+
+
+    # Helper function needed for make dataframe slices that return
+    # another dataframe instead of a Series even if only one row is
+    # the result of the slice
+    def _convert_slice(self,kslice,smax):
+        start = kslice.start
+        stop = kslice.stop
+        step = kslice.step
+        if kslice.start == None:
+            start = 0
+        if kslice.stop  == None:
+            stop = smax
+        if kslice.step == None:
+            step = 1
+        return slice(start,stop,step)
+
+    
+    # Helper function for slicing the dataframes
+    # Assumes that solutions_df has 2D multiindex: order=[eid,sid]
+    # Assumes that stations_df has 4D multiindex: order=[eid,sid,trid,gid]
+    def _get_df_slice_index(self,kslice,df,is_stations=False):
+
+        _df = df.copy()
+        nevents = _df.index.get_level_values('eid').nunique()
+        nsrcs   = _df.index.get_level_values('sid').nunique()
+        ntrs    = None
+        ngids   = None
+        if is_stations:
+            ntrs    = _df.index.get_level_values('trid').nunique()
+            ngids   = _df.index.get_level_values('gid').nunique()
+
+        _df.reset_index(inplace=True)
+
+        l_slice = []
+        if isinstance(kslice,tuple):
+            if isinstance(kslice[0],int):
+                l_slice.append((_df['eid'] == kslice[0]))
+            else:
+                s = self._convert_slice(kslice[0],nevents)
+                l_slice.append( ((_df['eid'] >= s.start) &
+                                 (_df['eid'] < s.stop)   &
+                                 (_df['eid']%s.step == 0)) )
+            if isinstance(kslice[1],int):
+                l_slice.append((_df['sid'] == kslice[1]))
+            else:
+                s = self._convert_slice(kslice[1],nsrcs)
+                l_slice.append( ((_df['sid'] >= s.start) &
+                                 (_df['sid'] < s.stop)   &
+                                 (_df['sid']%s.step == 0)) )
+            if 3 <= len(kslice):
+                if isinstance(kslice[2],int):
+                    l_slice.append((_df['trid'] == kslice[2]))
+                else:
+                    s = self._convert_slice(kslice[2],ntrs)
+                    l_slice.append( ((_df['trid'] >= s.start) &
+                                     (_df['trid'] < s.stop)   &
+                                     (_df['trid']%s.step == 0)) )
+            if 4 == len(kslice):
+                if isinstance(kslice[3],int):
+                    l_slice.append((_df['gid'] == kslice[3]))
+                else:
+                    s = self._convert_slice(kslice[3],ngids)
+                    l_slice.append( ((_df['gid'] >= s.start) &
+                                     (_df['gid'] < s.stop)   &
+                                     (_df['gid']%s.step == 0)) )
+            if 4 < len(kslice):
+                raise Exception('too many indexers')
+                
+        elif isinstance(kslice,int):
+            l_slice.append((_df['eid'] == kslice))
+        elif isinstance(kslice,slice):
+            s = self._convert_slice(kslice,nevents)
+            l_slice.append(((_df['eid'] >= s.start) &
+                     (_df['eid'] < s.stop)   &
+                     (_df['eid']%s.step == 0)))
+        else:
+            raise TypeError('wrong indexer type')
+        
+        return self._slice_to_bool(l_slice)
+
+
+    # helper funciton for slicing the solutions_df
+    def _get_solutions_df_slice_index(self,kslice):
+
+        if isinstance(kslice,tuple):
+            if len(kslice) < 2 or 4 < len(kslice):
+                raise Exception('too many indexers for solutions_df')
+            else:
+                return self._get_df_slice_index(kslice[0:2],self.solutions_df,is_stations=False)
+        else:
+            return self._get_df_slice_index(kslice,self.solutions_df,is_stations=False)
+
+
+    # helper funciton for slicing the stations_df
+    def _get_stations_df_slice_index(self,kslice):
+
+        if isinstance(kslice,tuple):
+            if len(kslice) < 2 or 4 < len(kslice):
+                raise Exception('incorrect number of indexers for stations_df indexer')
+            else:
+                return self._get_df_slice_index(kslice,self.stations_df,is_stations=True)
+        else:
+            return self._get_df_slice_index(kslice,self.stations_df,is_stations=True)
+            
+
+    # This will act like a dictionary if kslice is a string.
+    # Otherwise, it will act like slicing and return a NEW
+    # "sliced" RecordHeader
+    def __getitem__(self, kslice):
 
         if isinstance(kslice, str):
             return super(RecordHeader, self).__getitem__(kslice)
 
-        nslice = 1
-        if not isinstance(kslice,slice) and not isinstance(kslice,tuple):
-            raise Exception(f'indexer must be a slice object')
-        if isinstance(kslice,tuple):
-            nslice = len(kslice)
+        # get sliced dataframes
+        solu_slice_idx = self._get_solutions_df_slice_index(kslice)
+        stat_slice_idx = self._get_stations_df_slice_index(kslice)
 
-        if 4 < nslice:
-            raise Exception(f'too many indexers')
-            
-        c_solu_df = self.solutions_df.copy()
-        c_stat_df = self.stations_df.copy()
+        c_solu_df = self.solutions_df.reset_index()[solu_slice_idx]
+        c_stat_df = self.stations_df.reset_index()[stat_slice_idx]
 
-        idx = pd.IndexSlice
-
-        if nslice == 1:
-            c_solu_df = c_solu_df.loc[idx[kslice],:]
-        else: 
-            c_solu_df = c_solu_df.loc[idx[kslice[0:2]],:]
-
-        if not isinstance(c_solu_df,pd.Series):
-            c_solu_df.reset_index(inplace=True) #index values included in header
-
-        c_stat_df = c_stat_df.loc[idx[kslice],:]
-        if not isinstance(c_stat_df,pd.Series):
-            c_stat_df.reset_index(inplace=True) #index values included in header
-
-        
-        # Without above reset_index, each series(row) is missing index column vals
+        # make list of solution headers
         HeaderCls = self._get_header_class(is_stations=False)
-        if not isinstance(c_solu_df,pd.Series):
-            slice_sol_h = [HeaderCls.from_series(row) for index, row in c_solu_df.iterrows()]
-        else:
-            slice_sol_h = HeaderCls.from_series(c_solu_df)
+        slice_sol_h = [HeaderCls.from_series(row) for index, row in c_solu_df.iterrows()]
 
+        # make list of station headers
         HeaderCls = self._get_header_class(is_stations=True)
-        if not isinstance(c_stat_df,pd.Series):
-            slice_stat_h = [HeaderCls.from_series(row) for index, row in c_stat_df.iterrows()]
-        else:
-            slice_stat_h = HeaderCls.from_series(c_stat_df)
+        slice_stat_h = [HeaderCls.from_series(row) for index, row in c_stat_df.iterrows()]
 
-
+        #make new record which is like it had been sliced
         return RecordHeader(name=self.name,
                             solutions_h=slice_sol_h,
                             stations_h=slice_stat_h,
@@ -1162,7 +1269,8 @@ class RecordHeader(Header):
                             iter_id=self.iter_id)
 
 
-
+    # Helper function returns a "default-index" dataframe
+    # i.e. flattens the dataframe index -> multiindex-cols ->  data-cols
     def _get_reset_df(self,key=None,value=None,is_stations=True):
         
         c_df = None
@@ -1287,5 +1395,9 @@ class RecordHeader(Header):
     @property
     def nevents(self):
         return self['nevents']
+
+    @property
+    def nsrc_per_event(self):
+        return self['nsrc_per_event']
 
 
