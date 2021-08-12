@@ -1051,16 +1051,12 @@ class RecordHeader(Header):
         self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['eid','sid'])
         self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['eid','sid','trid','gid'])
 
+        '''
         ne_solu = self.solutions_df.index.get_level_values('eid').nunique()
-        mine_solu = self.solutions_df.index.get_level_values('eid').min()
         ne_stat = self.stations_df.index.get_level_values('eid').nunique()
-        mine_stat = self.solutions_df.index.get_level_values('eid').min()
 
         if ne_stat != ne_solu:
             raise Exception('Number of events does not match between Solutions and Stations')
-
-        if mine_stat != mine_solu:
-            raise Exception('event id\'s do not match between Solutions and Stations')
 
         self['nevents'] = ne_solu
 
@@ -1071,8 +1067,43 @@ class RecordHeader(Header):
             ns_stat = self.stations_df.loc[idx[ie,:,:,:],:].index.get_level_values('sid').nunique()
             if ns_stat != ns_solu:
                 raise Exception(f'For event-{ie}: number of sid\'s differs between Solutions and Stations')
+        '''
 
-        self['nsrc_per_event'] = ns_solu
+        l_nsrc_idx = []
+        for idx, df in self.solutions_df.groupby(level='eid'):
+            nsids = df.index.get_level_values('sid').unique()
+            l_nsrc_idx.append(nsids)
+
+        l_nrec_idx = []
+        for idx, df in self.stations_df.groupby(level='eid'):
+            nsids = df.index.get_level_values('sid').unique()
+            l_nrec_idx.append(nsids)
+
+        if len(l_nsrc_idx) != len(l_nrec_idx):
+            raise Exception('Number of events does not match between Solutions and Stations')
+
+        self['nevents'] = len(l_nsrc_idx)
+        
+        #use different num_sids so that they can be checked
+        ns_solu = None
+        ns_stat = None
+        prev_solu = len(l_nsrc_idx[0])
+        for ie in range(len(l_nsrc_idx)):
+            ns_solu = len(l_nsrc_idx[ie])
+            ns_stat = len(l_nrec_idx[ie])
+            if ns_solu !=  ns_stat:
+                raise Exception(f'For event-{ie}: number of sid\'s differs between Solutions and Stations')
+            #this check enforces that "batch" src size is the same per event
+            if ns_solu != prev_solu:
+                raise Exception(f'Number sid\'s differs between events')
+            for isrc in range(len(l_nsrc_idx[ie])):
+                if l_nsrc_idx[ie][isrc] !=  l_nrec_idx[ie][isrc]:
+                    raise Exception('src-id mismatch between Solutions and Stations')
+
+        if not isinstance(ns_solu,int):
+            raise Exception('class field "ns_solu" must be an int type')
+
+        self['nsrc'] = ns_solu
 
 
         self['added_solution_header_words'] = []
@@ -1397,7 +1428,7 @@ class RecordHeader(Header):
         return self['nevents']
 
     @property
-    def nsrc_per_event(self):
-        return self['nsrc_per_event']
+    def nsrc(self):
+        return self['nsrc']
 
 
