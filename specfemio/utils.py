@@ -578,6 +578,8 @@ def make_replicated_reciprocal_station_headers_from_src_triplet_list(l_vsrc,l_vr
 #
 ################################################################################
 
+def df_to_header_list(df,HeaderCls):
+    return  [HeaderCls.from_series(row) for index, row in df.iterrows()]
 
 def make_record_headers(l_src=None,l_rec=None):
 

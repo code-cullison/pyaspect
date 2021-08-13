@@ -1,3 +1,4 @@
+import os
 import pickle
 import importlib
 
@@ -14,6 +15,8 @@ from pyaspect.specfemio.utils import station_auto_data_fname_id
 from pyaspect.specfemio.utils import flatten_grouped_headers
 from pyaspect.specfemio.utils import flatten_grouped_headers_unique
 from pyaspect.specfemio.utils import is_grouped_headers
+from pyaspect.specfemio.utils import df_to_header_list
+
 
 from pyaspect.specfemio.headers import StationHeader
 from pyaspect.specfemio.headers import ForceSolutionHeader
@@ -160,81 +163,71 @@ def write_stations(fqp,
 #
 ################################################################################
 
-def write_record(proj_fqp,
-                 record,
+def write_record(rdir_fqp,
+                 record_h,
                  fname='event_record',
                  write_record_h=True,
                  write_h=False,
                  auto_name=False,
                  auto_network=False):
-
-    # do some checking
-    solution_range = set(record._get_reset_df(is_stations=False)['sid'])
-    station_range = set(record._get_reset_df(is_stations=False)['sid'])
-
-    if solution_range != station_range:
-        raise Exception('The solutions.sid are not the same as stations.sid')
     
-    # get solutions both for path making and for writing
-    solutions = record.get_solutions_header_list()
-    eid = solutions[0].eid
-    rid = record.rid
-
-    #do some more checking
-    for s in solutions:
-        if s.eid != eid:
-            raise Exception('soution.eid does not match list of solutions')
-
-    # make some paths
-    edir_fqp   = _join_path_fname(proj_fqp,f'run{str(eid+1).zfill(4)}')
-    data_fqp   = _join_path_fname(edir_fqp,'DATA')
-    record_fqp = _get_header_path(data_fqp,fname)
-
+    data_fqp = os.path.join(rdir_fqp,'DATA')
+    syn_fqp  = os.path.join(rdir_fqp,'SYN')
+    rel_syn_fqp = os.path.relpath(syn_fqp,syn_fqp)
+    rel_syn_data_fqp = os.path.relpath(syn_fqp,data_fqp)
     
-    # write solution files and headers
-    for i in range(len(solution_range)):
-        s = solutions[i]
-        if s.sid != i:
-            raise Exception(f'solution.sid is not the correct value')
-        mk_sym_link = False
-        if i == 0: #write SOLUTION symlink
-            mk_sym_link = True
-        write_solution(data_fqp,s,postfix=f'sid{i}',write_h=write_h,mk_sym_link=mk_sym_link)
-
-    # write station files and headers
-    for i in range(len(station_range)):
-        stations = record.get_stations_header_list(key='sid',value=i)
-
-        # more checking
-        for s in stations:
-            if s.sid != i:
-                raise Exception(f'station.sid is not the correct value')
-            if s.eid != eid:
-                raise Exception('station.eid does not match list of stations')
-
-            #TODO: could make '/SYN' dir variable dynamic
-            #      also with out knowing specfem DT, can't
-            #      finish the name of the station data (trace)
-            data_fname = station_auto_data_fname_id(s)
-            s.data_fqdn = _join_path_fname(edir_fqp,f'/SYN/{data_fname}')
+    record_h.reset_midx()
+    data_h = record_h.copy()
+    
+    
+    src_df = record_h.solutions_df
+    SrcHeader = record_h.solution_cls
+    
+    rec_df = record_h.stations_df
+    data_rec_df = data_h.stations_df
+    RecHeader = record_h.station_cls
+    
+    mk_sym_link = True # first <CMT|FORCE>SOLUTION and STATIONS files get symlink
+    for sidx, src in src_df.iterrows():
         
-        mk_sym_link = False
-        if i == 0: #write STATIONS symlink
-            mk_sym_link = True
-
-        s_fname = f'STATIONS.sid{i}'
+        #solution = src_htype.from_series(src)
+        solution = SrcHeader.from_series(src)
+        write_solution(data_fqp,
+                       solution,
+                       postfix=f'e{src.eid}s{src.sid}',
+                       write_h=write_h,
+                       mk_sym_link=mk_sym_link)
+        
+        for ridx, rec in rec_df.loc[rec_df['sid'] == src.sid].iterrows():
+            rec_df.loc[ridx,'data_fqdn'] = os.path.join(rel_syn_fqp,station_auto_data_fname_id(rec))
+            data_rec_df.loc[ridx,'data_fqdn'] = os.path.join(rel_syn_data_fqp,station_auto_data_fname_id(rec))
+            
+        
+        #get list of dictionaries
+        l_stations = df_to_header_list(data_rec_df,RecHeader)
         write_stations(data_fqp,
-                       stations,
-                       fname=s_fname,
+                       l_stations,
+                       fname=f'STATIONS.e{src.eid}s{src.sid}',
                        write_h=write_h,
                        auto_name=auto_name,
                        auto_network=auto_network,
                        mk_sym_link=mk_sym_link)
-
-    # write record header
+        
+        
+        mk_sym_link = False #only write for first src
+        
+    # write record header in run####/SYN
+    record_h.set_default_midx()
+    syn_record_fqp = _get_header_path(syn_fqp,fname)
+    _write_header(syn_record_fqp,record_h)
+        
+        
+    #write record header in run####/DATA
+    data_h.set_default_midx()
     if write_record_h:
-        _write_header(record_fqp,record)
-   
+        data_record_fqp = _get_header_path(data_fqp,fname)
+        _write_header(data_record_fqp,data_h)
+
 
 def write_records(proj_fqp,
                   l_records,

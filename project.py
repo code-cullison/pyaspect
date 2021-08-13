@@ -4,9 +4,14 @@ import copy
 
 import numpy as np
 
-from pyaspect.specfemio.utils import make_records
+from pyaspect.specfemio.utils import make_record_headers
 from pyaspect.specfemio.utils import _mk_symlink
 from pyaspect.specfemio.utils import _copy_recursive_dir
+from pyaspect.specfemio.utils import _join_path_fname
+from pyaspect.specfemio.utils import _get_header_path
+from pyaspect.specfemio.utils import station_auto_data_fname_id
+from pyaspect.specfemio.write import _write_header
+from pyaspect.specfemio.write import write_record
 from pyaspect.specfemio.write import write_records
 from pyaspect.specfemio.headers import *
 from pyaspect.parfile import change_multiple_parameters_in_lines
@@ -37,242 +42,286 @@ primary_dir_struct= {'INPUT_GRADIENT': {},
                     'COMBINE': {},
                     'topo': {} }
 
-
-def _make_proj_dirs(fqdn,access_rights=0o755):
+def _make_dirs(fqdn,access_rights=0o755):
     if os.path.isdir(fqdn):
         raise OSError(f'The directory {fqdn} has already been created')
     try:
         os.makedirs(fqdn, access_rights)
     except OSError:
         print(f'Creation of the directory {fqdn} failed')
+        return OSError
 
 
 def _recursive_proj_dirs(dl,pdir,access_rights=0o755):
 
     if len(dl.keys()) == 0:
-        return 
+        return
     else:
         for dl_key in dl.keys():
             new_dir = os.path.join(pdir, dl_key)
-            _make_proj_dirs(new_dir,access_rights=0o755)
+            _make_dirs(new_dir,access_rights=0o755)
             _recursive_proj_dirs(dl[dl_key],new_dir)
 
 
-def make_project(proj_name,
-                 proj_root_path,
-                 parfile_fqp,
-                 mesh_fqp,
-                 spec_fqp,
-                 pyutils_fqp,
-                 script_fqp,
-                 src_list,
-                 rec_list,
-                 obs_rec_list=None,
-                 parfile_kv_dict=None,
-                 copy_mesh=False,
-                 ignore_spec_max=False):
+def _make_proj_dir(proj_root_fqp,
+                   proj_base_name,
+                   pyutils_fqp=None,
+                   script_fqp=None):
 
-        
-        # Check src_list and rec_list (most likely to have a mistake)
-        if not isinstance(src_list,list):
-            raise TypeError('src_list must be a list type')
+        projdir_fqp = os.path.join(proj_root_fqp, proj_base_name)
+        _make_dirs(projdir_fqp)
 
-        if not isinstance(rec_list,list):
-            raise TypeError('rec_list must be a list type')
-        
-        if obs_rec_list != None:
-            if not isinstance(obs_rec_list,list):
-                raise TypeError('obs_rec_list must be a list type')
-
-        batch_size = None
-        nevents    = None
-        
-        if isinstance(src_list[0],list):
-            if not isinstance(src_list[0][0],SolutionHeader):
-                raise TypeError(f'elemts of src_list[:][:] must be of type={type(SolutionHeader)}')
-            batch_size = len(src_list[0])
-        else:
-            if not isinstance(src_list[0],SolutionHeader):
-                raise TypeError(f'elements of src_list[:] must be of type={type(SolutionHeader)}')
-            batch_size = 1
-
-        nevents    = len(src_list)
-
-        # NON-Batch src 
-        if batch_size == 1:
-            if not isinstance(rec_list[0],list):
-                raise TypeError(f'rec_list[:][:] must be a list type')
-            if not isinstance(rec_list[0][0],StationHeader):
-                raise TypeError(f'elemts of rec_list[:][:] must be of type={type(StationHeader)}')
-
-            # if doing fwi 
-            # TODO: better to not repeat code
-            if obs_rec_list != None:
-                if not isinstance(obs_rec_list[0],list):
-                    raise TypeError(f'obs_rec_list[:][:] must be a list type')
-                if len(obs_rec_list) != nevents:
-                    raise Exception(f'number of observed data traces is inconsitant with number of receiver stations')
-                #TODO: include Trace when when finished
-                #if not isinstance(obs_rec_list[0,0],Trace):
-                    #raise TypeError(f'elemts of obs_rec_list[0,:] must be of type={type(StationHeader)}')
-
-        # Batch src 
-        elif 1 < batch_size:
-            if not isinstance(rec_list[0][0],list):
-                raise TypeError(f'rec_list[:][:] must be a list type')
-            if not isinstance(rec_list[0][0][0],StationHeader):
-                raise TypeError(f'elemts of rec_list[:][:][:] must be of type={type(StationHeader)}')
-
-            if obs_rec_list != None:
-                if len(obs_rec_list) != nevents:
-                    raise Exception(f'number of observed data traces is inconsitant with number of receiver stations')
-                if not isinstance(obs_rec_list[0][0],list):
-                    raise TypeError(f'obs_rec_list[:][:] must be a list type')
-                #TODO: include Trace when when finished
-                #if not isinstance(obs_rec_list[0,0,0],Trace):
-                #    raise TypeError(f'elemts of obs_rec_list[:][:][:] must be of type={type(StationHeader)}')
-
-        # not designed/implemented for other types
-        else:
-            raise Exception('structure of src_list and rec_list are not complient')
-
-
-        if len(rec_list) != nevents:
-            raise Exception(f'number of receiver stations is inconsitant with number of sourcs')
-
-
-
-        if not isinstance(spec_fqp,str):
-            raise TypeError('spec_fqp must be a str type')
-
-        if not isinstance(pyutils_fqp,str):
-            raise TypeError('pyutils_fqp must be a str type')
-        
-        if not isinstance(script_fqp,str):
-            raise TypeError('script_fqp must be a str type')
-        
-        if not isinstance(proj_root_path,str):
-            raise TypeError('proj_root_path must be a str type')
-
-
-        if MAX_SPEC_SRC < nevents and not ignore_spec_max:
-            excpt_str  = f'The number events exceeds MAX_SPEC_SRC.\n'
-            excpt_str += f'To create more than {MAX_SPEC_SRC} directoies,'
-            excpt_str += f'please set \'ignore_spec_max\' to True.'
-            raise Exception(excpt_str)
-
-
-        # set paths
-        spec_bin_fqp   = os.path.join(spec_fqp, 'bin')
-        spec_utils_fqp   = os.path.join(spec_fqp, 'utils')
-        proj_fqdn = os.path.join(proj_root_path, proj_name)
-        
-        # set directory access
-        access_rights = 0o755
-
-        # check if forward or inversion
-        fwd_only = True
-        if obs_rec_list != None:
-            fwd_only = False
-
-
-        # create records now so that headers can be checked
-        l_records = make_records(l_src=src_list,l_rec=rec_list)
-
-
-        ######################################3
-        #
-        #create_project_dirs and write records
-        #
-        ######################################3
-        
-        # create main project dir
-        err = _make_proj_dirs(proj_fqdn)
-        
-        # create project level symlinks 
-        lname = 'pyutils'
-        src = pyutils_fqp
-        dst = os.path.join(proj_fqdn, lname)
-        _mk_symlink(src,dst)
-
-        lname = 'scriptutils'
-        src = script_fqp
-        dst = os.path.join(proj_fqdn, lname)
-        _mk_symlink(src,dst)
-
-        # read and setup Par_file
-        par_keys = ['SIMULATION_TYPE','SAVE_FORWARD','MODEL','SAVE_MESH_FILES','USE_BINARY_FOR_SEISMOGRAMS']
-
-        par_lines = readlines(parfile_fqp)
-
-        keys_vals_dict = dict(zip(par_keys,[1,False,'gll',False,True]))
-        par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
-
-        if not fwd_only:
-            keys_vals_dict = dict(zip(par_keys,[1,True,'gll',False,True]))
-            par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
-
-        #loop over number of events and create (run####) dirs
-        for e in range(nevents):
-
-            # make event dir
-            
-            rdir = 'run' + str(e+1).zfill(4)
-            edir = os.path.join(proj_fqdn, rdir)
-            err  = _make_proj_dirs(edir)
-            
-            ddir = os.path.join(edir, 'DATA')
-
-            # make sim links for each event dir (related to the computational node(s) filesytem
-            lname = 'bin'
-            src = spec_bin_fqp
-            dst = os.path.join(edir, lname)
+        # create project level symlinks
+        if pyutils_fqp != None:
+            lname = 'pyutils'
+            src = pyutils_fqp
+            dst = os.path.join(projdir_fqp, lname)
             _mk_symlink(src,dst)
 
-            lname = 'utils'
-            src = spec_utils_fqp
-            dst = os.path.join(edir, lname)
+        if script_fqp != None:
+            lname = 'scriptutils'
+            src = script_fqp
+            dst = os.path.join(projdir_fqp, lname)
             _mk_symlink(src,dst)
 
+        return projdir_fqp
+
+def _make_run_dir(irdir,
+                  projdir_fqp,
+                  spec_bin_fqp,
+                  spec_utils_fqp,
+                  par_lines,
+                  dir_struct,
+                  record_h):
+
+    rdir_name = 'run' + str(irdir+1).zfill(4)
+    rundir_fqp = os.path.join(projdir_fqp, rdir_name)
+    _make_dirs(rundir_fqp)
+
+    # make sim links for each event dir 
+    # (related to the computational node(s) filesytem
+    lname = 'bin'
+    src = spec_bin_fqp
+    dst = os.path.join(rundir_fqp, lname)
+    _mk_symlink(src,dst)
+
+    lname = 'utils'
+    src = spec_utils_fqp
+    dst = os.path.join(rundir_fqp, lname)
+    _mk_symlink(src,dst)
+
+    # make subdirectorieds for each event
+    _recursive_proj_dirs(common_dir_struct,rundir_fqp)
+
+    #write Par_files in DATA dirs
+    ddir_fqp = os.path.join(rundir_fqp, 'DATA')
+    out_par_fqp  = os.path.join(ddir_fqp, 'Par_file')
+    writelines(out_par_fqp,par_lines)
+    
+    #write Headers and Record
+    write_record(rundir_fqp,
+                 record_h,
+                 fname='record',
+                 write_record_h=True,
+                 write_h=False,
+                 auto_name=True,
+                 auto_network=True)
+
+
+def make_fwd_project_dir(proj_base_name,
+                         proj_root_fqp,
+                         parfile_fqp,
+                         mesh_fqp,
+                         spec_fqp,
+                         pyutils_fqp,
+                         script_fqp,
+                         proj_record_h,
+                         sub_proj_name=None,
+                         batch_srcs=False,
+                         copy_mesh=False,
+                         max_event_rdirs=MAX_SPEC_SRC,
+                         verbose=False):
+    
+    
+    if not isinstance(proj_record_h,RecordHeader):
+        raise TypeError('arg: \'record_h\' must be a RecordHeader type')
+
+    if not isinstance(proj_base_name,str):
+        raise TypeError('proj_base_name must be a str type')
+
+    if not isinstance(proj_root_fqp,str):
+        raise TypeError('proj_root_fqp must be a str type')
+
+    if not isinstance(parfile_fqp,str):
+        raise TypeError('parfile_fqp must be a str type')
+
+    if not isinstance(mesh_fqp,str):
+        raise TypeError('mesh_fqp must be a str type')
+
+    if not isinstance(spec_fqp,str):
+        raise TypeError('spec_fqp must be a str type')
+
+    if not isinstance(pyutils_fqp,str):
+        raise TypeError('pyutils_fqp must be a str type')
+
+    if not isinstance(script_fqp,str):
+        raise TypeError('script_fqp must be a str type')
+
+    ########################################################################
+    #
+    # setup project structure parameters
+    #
+    ########################################################################
+    
+    nevents = proj_record_h.nevents
+    nsrc = proj_record_h.nsrc
+    
+    #setup nbatch
+    nbatch = 1
+    if batch_srcs:
+        nbatch = nsrc
             
-            # make subdirectorieds for each event
-            _recursive_proj_dirs(common_dir_struct,edir)
-
-            # make extra fwi dirs if needed
-            if not fwd_only:
-                _recursive_proj_dirs(common_fwi_dir_struct,edir)
-                
-            # make sub-dirs needed only in the primary run0001 dir (used for inversion, model-updating, etc.)
-            if e == 0 and not fwd_only:
-                _recursive_proj_dirs(primary_dir_struct,edir)
-
-            #write Par_files in DATA dirs
-            par_fqdn = os.path.join(ddir, 'Par_file')
-            writelines(par_fqdn,par_lines)
-                
-        #end for e in range(nevents)
-
-        # Now that directories are in place, write the src-rec records
-        # Note: the records were created before the project directories
-        #       so that parameter checking on headers could be done
-        #       before making directories.  We wait to write records so
-        #       that we can be sure the directories have been made
-        write_records(proj_fqdn,
-                      l_records,
-                      fname='proj_records',
-                      write_record_h=True,
-                      write_h=False,
-                      auto_name=True,
-                      auto_network=True)
+       
+    # calculate number of rundirs (events) per subproject/project
+    l_nrundirs = [nevents]
+    if not batch_srcs:
+        l_nrundirs[0] = nevents*nsrc
+        
+    # calculate if project or subprojects and addjust rundirs
+    if max_event_rdirs < l_nrundirs[0]:
+        old_nrundirs = l_nrundirs[0]
+        ndiv = l_nrundirs[0]//max_event_rdirs
+        l_nrundirs[0] = max_event_rdirs
+        for i in range(1,ndiv):
+            l_nrundirs.append(max_event_rdirs)
+        rem_rundirs = old_nrundirs%max_event_rdirs 
+        if rem_rundirs != 0:
+            l_nrundirs.append(rem_rundirs)
             
+    # actual number of subproject dirs
+    nprojdirs = len(l_nrundirs)
+    
+    # info
+    if verbose:
+        print(f'nevents: {nevents}')
+        print(f'nsrc: {nsrc}')
+        print(f'nbatch: {nbatch}')
+        print(f'l_nrundirs: {l_nrundirs}')
+        print(f'total_rundirs: {sum(l_nrundirs)}')
+        print(f'nprojdirs: {nprojdirs}')
+
+    # setup paths to specfem binarys and utils/tools
+    spec_bin_fqp   = os.path.join(spec_fqp, 'bin')
+    spec_utils_fqp   = os.path.join(spec_fqp, 'utils')
+    
+    
+    # Read input Par_file stub 
+    par_lines = readlines(parfile_fqp)
+    
+    # Setup output Par_files based on user input Par_file stub
+    par_keys = ['SIMULATION_TYPE','SAVE_FORWARD','MODEL','SAVE_MESH_FILES','USE_BINARY_FOR_SEISMOGRAMS']
+    keys_vals_dict = dict(zip(par_keys,[1,False,'gll',False,True]))
+    par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
+    
+    
+    ########################################################################
+    #
+    # If more than one proj_dir is needed then make a main proj_dir
+    # for the sub_proj_dirs.  
+    #
+    ########################################################################
+    
+    #Setup sub_dir pars here
+    if sub_proj_name == None:
+        sub_proj_name = 'Sub_' + proj_base_name
+        
+    sub_proj_root_fqp = proj_root_fqp
+    sub_pdir_name = proj_base_name
+    
+    
+    # make the main_dir if needed
+    if 1 < nprojdirs:
+        sub_proj_root_fqp = _make_proj_dir(proj_root_fqp,
+                                           proj_base_name)
+        
+        
+    if verbose: print(f'sub_proj_root_fqp: {sub_proj_root_fqp}')
+
+    accum_src = 0
+    for ipdir in range(nprojdirs):
+        
+        # Make subdir or main project dir depending on number of proj_dirs
+        sub_projdir_fqp = sub_proj_root_fqp
+        
+        if nprojdirs != 1:
+            sub_pdir_name = sub_proj_name + '_' + str(ipdir+1).zfill(4)
+            
+        sub_projdir_fqp = _make_proj_dir(sub_projdir_fqp,
+                                         sub_pdir_name,
+                                         pyutils_fqp=pyutils_fqp,
+                                         script_fqp=script_fqp,)
+        
+        
+        ####################################################################
+        #
+        # Make all the run dirs per proj/sub_proj dirs
+        #
+        ####################################################################
+        for irdir in range(l_nrundirs[ipdir]):
+            
+            #FIXME: "ie" is not Correct! need list[ipdir][irdir] returns ie
+            ie   = accum_src//nsrc
+            isrc = accum_src%nsrc
+            rdir_record_h = proj_record_h[ie,isrc:isrc+nbatch,:,:]
+            
+            rdir_record_h.solutions_df['proj_id'] = ipdir
+            rdir_record_h.stations_df['proj_id']  = ipdir
+            
+            _make_run_dir(irdir,
+                          sub_projdir_fqp,
+                          spec_bin_fqp,
+                          spec_utils_fqp,
+                          par_lines,
+                          common_dir_struct,
+                          rdir_record_h)
+            
+            accum_src += nbatch
+
+            ####################################################################
+            #
+            # Setup and set the SPECFEM station data paths and file prefix names
+            #
+            ####################################################################
+
+            #setup paths for changing data_fqdn's in stations
+            rdir_name = 'run' + str(irdir+1).zfill(4)
+            rundir_fqp = os.path.join(sub_projdir_fqp, rdir_name)
+            syn_fqp = os.path.join(rundir_fqp, 'SYN')
+            rel_syn_fqp = os.path.relpath(syn_fqp,sub_proj_root_fqp)
+            
+
+            # reset the pandas.Multiindex to allow eid and sid filtering
+            proj_record_h.reset_midx()
+            rec_df = proj_record_h.stations_df
+
+            # loop over all stations and set data_fqdn
+            ibool = (rec_df['eid'] == ie) & ((rec_df['sid'] >= isrc) & (rec_df['sid'] < isrc+nbatch))
+            for ridx, rec in rec_df[ibool].iterrows():
+                new_data_fqdn = os.path.join(rel_syn_fqp,station_auto_data_fname_id(rec))
+                rec_df.loc[ridx,"data_fqdn"] = new_data_fqdn
                 
-        # finally we copy or sym-link the MESH directory. We 
-        # wait becuase if copying this can take a lot of time,
-        # so it's smart to make sure everything before this 
-        # executes successfully
-        mesh_dst_fqp = os.path.join(proj_fqdn, 'MESH-default')
-        if copy_mesh:
-            _copy_recursive_dir(mesh_fqp,mesh_dst_fqp)
-        else:
-            _mk_symlink(mesh_fqp,mesh_dst_fqp)
+
+            # set index back to origanl
+            proj_record_h.set_default_midx()
+            
+    ###############################################
+    #
+    # write record header for the main project
+    #
+    ###############################################
+    proj_record_fqp = _get_header_path(sub_proj_root_fqp,'project_record')
+    if nprojdirs == 1:
+        single_proj_fqp = os.path.join(sub_proj_root_fqp,proj_base_name)
+        proj_record_fqp = _get_header_path(single_proj_fqp,'project_record')
+    _write_header(proj_record_fqp,proj_record_h)
 

@@ -11,9 +11,14 @@ from pyaspect.specfemio.utils import _get_file_header_paths
 
 def _read_headers(fqpname):
 
+    '''
     f = open(fqpname, 'rb')
     headers = pickle.load(f)
     f.close()
+    '''
+
+    with open(fqpname, 'rb') as f:
+        headers = pickle.load(f)
 
     return headers
 
