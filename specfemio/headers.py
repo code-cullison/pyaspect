@@ -1048,26 +1048,14 @@ class RecordHeader(Header):
         self._station_cls_name = l_stations_h[0].__class__.__name__
 
 
-        self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=['eid','sid'])
-        self['stations_df']  = pd.DataFrame.from_records(l_stations_h, index=['eid','sid','trid','gid'])
+        self['default_solu_midx'] = ('eid','sid')
+        self['default_stat_midx'] = ('eid','sid','trid','gid')
 
-        '''
-        ne_solu = self.solutions_df.index.get_level_values('eid').nunique()
-        ne_stat = self.stations_df.index.get_level_values('eid').nunique()
+        smidx = list(self['default_solu_midx'])
+        rmidx = list(self['default_stat_midx'])
 
-        if ne_stat != ne_solu:
-            raise Exception('Number of events does not match between Solutions and Stations')
-
-        self['nevents'] = ne_solu
-
-        idx = pd.IndexSlice
-        #for ie in range(self.nevents):
-        for ie in range(mine_solu,ne_solu):
-            ns_solu = self.solutions_df.loc[idx[ie,:],:].index.get_level_values('sid').nunique()
-            ns_stat = self.stations_df.loc[idx[ie,:,:,:],:].index.get_level_values('sid').nunique()
-            if ns_stat != ns_solu:
-                raise Exception(f'For event-{ie}: number of sid\'s differs between Solutions and Stations')
-        '''
+        self['solutions_df'] = pd.DataFrame.from_records(l_solutions_h, index=smidx)
+        self['stations_df']  = pd.DataFrame.from_records(l_stations_h,  index=rmidx)
 
         l_nsrc_idx = []
         for idx, df in self.solutions_df.groupby(level='eid'):
@@ -1199,6 +1187,8 @@ class RecordHeader(Header):
         l_slice = []
         if isinstance(kslice,tuple):
             if isinstance(kslice[0],int):
+                if kslice[0] < 0:
+                    raise KeyError(kslice[0])
                 l_slice.append((_df['eid'] == kslice[0]))
             else:
                 s = self._convert_slice(kslice[0],nevents)
@@ -1206,6 +1196,8 @@ class RecordHeader(Header):
                                  (_df['eid'] < s.stop)   &
                                  (_df['eid']%s.step == 0)) )
             if isinstance(kslice[1],int):
+                if kslice[1] < 0:
+                    raise KeyError(kslice[1])
                 l_slice.append((_df['sid'] == kslice[1]))
             else:
                 s = self._convert_slice(kslice[1],nsrcs)
@@ -1214,6 +1206,8 @@ class RecordHeader(Header):
                                  (_df['sid']%s.step == 0)) )
             if 3 <= len(kslice):
                 if isinstance(kslice[2],int):
+                    if kslice[2] < 0:
+                        raise KeyError(kslice[2])
                     l_slice.append((_df['trid'] == kslice[2]))
                 else:
                     s = self._convert_slice(kslice[2],ntrs)
@@ -1222,6 +1216,8 @@ class RecordHeader(Header):
                                      (_df['trid']%s.step == 0)) )
             if 4 == len(kslice):
                 if isinstance(kslice[3],int):
+                    if kslice[3] < 0:
+                        raise KeyError(kslice[3])
                     l_slice.append((_df['gid'] == kslice[3]))
                 else:
                     s = self._convert_slice(kslice[3],ngids)
@@ -1232,6 +1228,8 @@ class RecordHeader(Header):
                 raise Exception('too many indexers')
                 
         elif isinstance(kslice,int):
+            if kslice < 0:
+                raise KeyError(kslice)
             l_slice.append((_df['eid'] == kslice))
         elif isinstance(kslice,slice):
             s = self._convert_slice(kslice,nevents)
@@ -1284,11 +1282,13 @@ class RecordHeader(Header):
         c_stat_df = self.stations_df.reset_index()[stat_slice_idx]
 
         # make list of solution headers
-        HeaderCls = self._get_header_class(is_stations=False)
+        #HeaderCls = self._get_header_class(is_stations=False)
+        HeaderCls = self.solution_cls
         slice_sol_h = [HeaderCls.from_series(row) for index, row in c_solu_df.iterrows()]
 
         # make list of station headers
-        HeaderCls = self._get_header_class(is_stations=True)
+        #HeaderCls = self._get_header_class(is_stations=True)
+        HeaderCls = self.station_cls
         slice_stat_h = [HeaderCls.from_series(row) for index, row in c_stat_df.iterrows()]
 
         #make new record which is like it had been sliced
@@ -1390,7 +1390,28 @@ class RecordHeader(Header):
 
         return ns_stat
 
+    def reset_midx(self):
+        self.reset_solutions_midx()
+        self.reset_stations_midx()
 
+    def reset_solutions_midx(self):
+        self.solutions_df.reset_index(inplace=True)
+
+    def reset_stations_midx(self):
+        self.stations_df.reset_index(inplace=True)
+
+    def set_default_midx(self):
+        self.set_default_solutions_midx()
+        self.set_default_stations_midx()
+
+    def set_default_solutions_midx(self):
+        smidx = list(self['default_solu_midx'])
+        self.solutions_df.set_index(smidx,inplace=True)
+
+    def set_default_stations_midx(self):
+        rmidx = list(self['default_stat_midx'])
+        self.stations_df.set_index(rmidx,inplace=True)
+        
     @property
     def solution_type(self):
         return self['solution_type']
@@ -1406,6 +1427,14 @@ class RecordHeader(Header):
     @property
     def iter_id(self):
         return self['iter_id']
+    
+    @property
+    def solution_cls(self):
+        return self._get_header_class(is_stations=False)
+    
+    @property
+    def station_cls(self):
+        return self._get_header_class(is_stations=True)
     
     @property
     def solutions_df(self):
