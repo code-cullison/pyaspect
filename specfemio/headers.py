@@ -1412,9 +1412,6 @@ class RecordHeader(Header):
         rmidx = list(self['default_stat_midx'])
         self.stations_df.set_index(rmidx,inplace=True)
         
-    @property
-    def solution_type(self):
-        return self['solution_type']
 
     @property
     def proj_id(self):

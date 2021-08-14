@@ -128,6 +128,15 @@ def _make_run_dir(irdir,
                  auto_network=True)
 
 
+def setup_mesh_dir(proj_fqp, mesh_fqp, copy_mesh=False):
+
+    mesh_dst_fqp = os.path.join(proj_fqp, 'MESH-default')
+    if copy_mesh:
+        _copy_recursive_dir(mesh_fqp,mesh_dst_fqp)
+    else:
+        _mk_symlink(mesh_fqp,mesh_dst_fqp)
+
+
 def make_fwd_project_dir(proj_base_name,
                          proj_root_fqp,
                          parfile_fqp,
@@ -219,8 +228,16 @@ def make_fwd_project_dir(proj_base_name,
     par_lines = readlines(parfile_fqp)
     
     # Setup output Par_files based on user input Par_file stub
-    par_keys = ['SIMULATION_TYPE','SAVE_FORWARD','MODEL','SAVE_MESH_FILES','USE_BINARY_FOR_SEISMOGRAMS']
-    keys_vals_dict = dict(zip(par_keys,[1,False,'gll',False,True]))
+    par_keys = ['SIMULATION_TYPE',
+                'SAVE_FORWARD',
+                'USE_FORCE_POINT_SOURCE',
+                'MODEL',
+                'SAVE_MESH_FILES',
+                'USE_BINARY_FOR_SEISMOGRAMS']
+    
+    #set solution type
+    use_force_src = ForceSolutionHeader == proj_record_h.solution_cls
+    keys_vals_dict = dict(zip(par_keys,[1,False,use_force_src,'gll',False,True]))
     par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
     
     
@@ -243,6 +260,9 @@ def make_fwd_project_dir(proj_base_name,
     if 1 < nprojdirs:
         sub_proj_root_fqp = _make_proj_dir(proj_root_fqp,
                                            proj_base_name)
+
+        # make or copy MESH-default to the main project dir
+        setup_mesh_dir(sub_proj_root_fqp, mesh_fqp, copy_mesh=copy_mesh)
         
         
     if verbose: print(f'sub_proj_root_fqp: {sub_proj_root_fqp}')
@@ -260,7 +280,19 @@ def make_fwd_project_dir(proj_base_name,
                                          sub_pdir_name,
                                          pyutils_fqp=pyutils_fqp,
                                          script_fqp=script_fqp,)
-        
+    
+
+        # Copy/Symlink MESH-default 
+        if nprojdirs == 1:
+            #no sub projects so copy or make symlink (user par)
+            setup_mesh_dir(sub_projdir_fqp, mesh_fqp, copy_mesh=copy_mesh)
+        else: 
+            #multiple subproject: only make symlink for subproj dirs
+            sym_mesh_fqp = os.path.join(sub_proj_root_fqp,'MESH-default')
+            rel_mesh_fqp = os.path.relpath(sub_proj_root_fqp,sym_mesh_fqp)
+            rel_mesh_fqp = os.path.join(rel_mesh_fqp,'MESH-default')
+            setup_mesh_dir(sub_projdir_fqp, rel_mesh_fqp, copy_mesh=False)
+
         
         ####################################################################
         #
@@ -324,4 +356,18 @@ def make_fwd_project_dir(proj_base_name,
         single_proj_fqp = os.path.join(sub_proj_root_fqp,proj_base_name)
         proj_record_fqp = _get_header_path(single_proj_fqp,'project_record')
     _write_header(proj_record_fqp,proj_record_h)
+
+
+    '''
+    # finally we copy or sym-link the MESH directory. We 
+    # wait becuase if copying this can take a lot of time,
+    # so it's smart to make sure everything before this 
+    # executes successfully
+    mesh_dst_fqp = os.path.join(proj_fqdn, 'MESH-default')
+    if copy_mesh:
+        _copy_recursive_dir(mesh_fqp,mesh_dst_fqp)
+    else:
+        _mk_symlink(mesh_fqp,mesh_dst_fqp)
+    '''
+
 
