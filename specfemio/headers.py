@@ -724,7 +724,7 @@ class CMTSolutionHeader(SolutionHeader):
 
 
         hstr  = f'PDE {date.year} {date.month} {date.day} {date.hour} {date.minute} {date.second}'
-        hstr += f' {lat_yc} {lon_xc} {depth/1000.0} {mt.Mw} 0 srcid_{eid}'
+        hstr += f' {lat_yc} {lon_xc} {depth/1000.0} {mt.magnitude} 0 srcid_{eid}'
 
         super(CMTSolutionHeader,self).__init__(name=hstr,
                                                lat_yc=lat_yc,
@@ -742,13 +742,21 @@ class CMTSolutionHeader(SolutionHeader):
         self['strike'] = mt.strike
         self['dip']    = mt.dip
         self['rake']   = mt.rake
-        self['mw']     = mt.Mw
+        self['mw']     = mt.magnitude
+        self['mrr']    = mt.m6_up_south_east()[0]
+        self['mtt']    = mt.m6_up_south_east()[1]
+        self['mpp']    = mt.m6_up_south_east()[2]
+        self['mrt']    = mt.m6_up_south_east()[3]
+        self['mrp']    = mt.m6_up_south_east()[4]
+        self['mtp']    = mt.m6_up_south_east()[5]
+        '''
         self['mrr']    = mt.harvard_dcm_m6()[0]
         self['mtt']    = mt.harvard_dcm_m6()[1]
         self['mpp']    = mt.harvard_dcm_m6()[2]
         self['mrt']    = mt.harvard_dcm_m6()[3]
         self['mrp']    = mt.harvard_dcm_m6()[4]
         self['mtp']    = mt.harvard_dcm_m6()[5]
+        '''
 
 
     def hash_val(self):
@@ -780,10 +788,12 @@ class CMTSolutionHeader(SolutionHeader):
         * ``tshift``
         * ``date``
         * ``hdur``
-        * ``strike``
-        * ``dip``
-        * ``rake``
-        * ``mw``
+        * ``mrr``
+        * ``mtt``
+        * ``mpp``
+        * ``mrt``
+        * ``mrp``
+        * ``mtp``
 
         If the following 'key: value' pairs are not specfied, then 
         they will be set equal to 0:
@@ -804,10 +814,12 @@ class CMTSolutionHeader(SolutionHeader):
                          'date',
                          'hdur']
         
-        required_mt_keys = ['strike',
-                            'dip',
-                            'rake',
-                            'mw']
+        required_mt_keys = ['mrr',
+                            'mtt',
+                            'mpp',
+                            'mrt',
+                            'mrp',
+                            'mtp']
         
         # check and get required keys
         args_dict = {}
@@ -828,10 +840,21 @@ class CMTSolutionHeader(SolutionHeader):
                 del h_dict[rkey]
 
         # add moment tensor
+        '''
         args_dict['mt'] = MomentTensor(mw=mt_args_dict['mw'],
                                        strike=mt_args_dict['strike'],
                                        dip=mt_args_dict['dip'],
                                        rake=mt_args_dict['rake'])
+        '''
+
+        mrr = mt_args_dict['mrr']
+        mtt = mt_args_dict['mtt']
+        mpp = mt_args_dict['mpp']
+        mrt = mt_args_dict['mrt']
+        mrp = mt_args_dict['mrp']
+        mtp = mt_args_dict['mtp']
+        h_matrix = np.array([[mrr,mrt,mrp],[mrt,mtt,mtp],[mrp,mtp,mpp]])
+        args_dict['mt'] = MomentTensor(m_up_south_east=h_matrix)
 
         # make CMTSolutionHeader
         new_header = CMTSolutionHeader(**args_dict)
@@ -1284,6 +1307,17 @@ class RecordHeader(Header):
         # make list of solution headers
         #HeaderCls = self._get_header_class(is_stations=False)
         HeaderCls = self.solution_cls
+        '''
+        print(f'IN RecordHeader: check c_solution_df type:{type(c_solu_df)}')
+        print(f'IN RecordHeader: _solution_mod_name:{self._solution_mod_name}')
+        print(f'IN RecordHeader: _solution_cls_name:{self._solution_cls_name}')
+        print(f'IN RecordHeader: SolHeaderCls:{HeaderCls}')
+        print(f'IN RecordHeader: isinstance(SolHeaderCls):{isinstance(HeaderCls,CMTSolutionHeader)}')
+        if self._solution_cls_name == 'CMTSolutionHeader':
+            print('***IN -- IS-Type')
+            for index, row in c_solu_df.iterrows():
+                print(f'index,row["mw"]:\n{index}\n{row["mw"]}')
+        '''
         slice_sol_h = [HeaderCls.from_series(row) for index, row in c_solu_df.iterrows()]
 
         # make list of station headers

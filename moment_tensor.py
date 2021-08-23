@@ -146,6 +146,7 @@ class MomentTensor(RockoMT):
         return self._arg_rake
 
     '''
+    #FIXME: this gets weird when converting
     @property
     def Mw(self): # the rake as given by argument
         return self._arg_Mw
