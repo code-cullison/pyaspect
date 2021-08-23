@@ -1,11 +1,17 @@
 import os
 import copy
 import shutil
+import datetime
 
 import numpy as np
 
 from functools import wraps
 from time import time
+
+from pyaspect.specfemio.headers import ForceSolutionHeader
+from pyaspect.specfemio.headers import SolutionHeader
+from pyaspect.specfemio.headers import StationHeader
+from pyaspect.specfemio.headers import RecordHeader
 
 
 ################################################################################
@@ -394,7 +400,7 @@ def get_unique_xyz_coords_from_station_list_except(l_stations,key=None,val=None)
 
 def make_triplet_force_solution_members(src=None):
 
-    from pyaspect.specfemio.headers import ForceSolutionHeader
+    #from pyaspect.specfemio.headers import ForceSolutionHeader
     
     solution_members = []
 
@@ -462,8 +468,8 @@ def make_grouped_triplet_force_solution_headers(solutions=None):
 
 def make_replicated_station_headers_from_src_list(l_srcs,l_recs):
 
-    from pyaspect.specfemio.headers import SolutionHeader
-    from pyaspect.specfemio.headers import StationHeader
+    #from pyaspect.specfemio.headers import SolutionHeader
+    #from pyaspect.specfemio.headers import StationHeader
 
     if not isinstance(l_srcs[0],SolutionHeader):
         raise TypeError('l_srcs[:] elements must be of type:{type(SolutionHeader}')
@@ -491,7 +497,7 @@ def make_replicated_station_headers_from_src_list(l_srcs,l_recs):
 
 def make_grouped_reciprocal_station_headers_from_cmt_list(l_cmt,delta,full_cross=True):
 
-    from pyaspect.specfemio.headers import StationHeader
+    #from pyaspect.specfemio.headers import StationHeader
 
     # Make the main stations
     l_vrecs = []
@@ -518,8 +524,8 @@ def make_grouped_half_cross_reciprocal_station_headers_from_cmt_list(l_cmt,delta
 
 def make_grouped_reciprocal_force_solution_triplet_headers_from_rec_list(l_rec):
 
-    import datetime
-    from pyaspect.specfemio.headers import ForceSolutionHeader
+    #import datetime
+    #from pyaspect.specfemio.headers import ForceSolutionHeader
 
     # First we make a single virtual source per receiver
     l_vsrcs = []
@@ -548,8 +554,8 @@ def make_grouped_reciprocal_force_solution_triplet_headers_from_rec_list(l_rec):
 
 def make_replicated_reciprocal_station_headers_from_src_triplet_list(l_vsrc,l_vrec):
 
-    from pyaspect.specfemio.headers import ForceSolutionHeader
-    from pyaspect.specfemio.headers import StationHeader
+    #from pyaspect.specfemio.headers import ForceSolutionHeader
+    #from pyaspect.specfemio.headers import StationHeader
 
     if not isinstance(l_vsrc[0][0],ForceSolutionHeader):
         raise TypeError('l_vsrc[:][:] elements must be of type:{type(ForceSolutionHeader}')
@@ -591,9 +597,9 @@ def make_record_headers(l_src=None,l_rec=None):
     if len(l_src) != len(l_rec):
         raise Exception('Lengths of l_src and l_rec must be equal')
 
-    from pyaspect.specfemio.headers import SolutionHeader
-    from pyaspect.specfemio.headers import StationHeader
-    from pyaspect.specfemio.headers import RecordHeader
+    #from pyaspect.specfemio.headers import SolutionHeader
+    #from pyaspect.specfemio.headers import StationHeader
+    #from pyaspect.specfemio.headers import RecordHeader
 
     l_records = []
 
