@@ -6,7 +6,7 @@ SPECFEM3D modeling, inversion, and for training neural-
 network training
 '''
 
-__version__ = '0.1'
+__version__ = '0.5'
 __author__ = 'Thomas Cullison @ Utrecht University'
 
 
@@ -105,13 +105,29 @@ class MomentTensor(RockoMT):
     """
     
 
-    def __init__(self,mw=None,strike=None,dip=None,rake=None):
-        self._arg_strike = strike
-        self._arg_dip    = dip
-        self._arg_rake   = rake
-        self._arg_Mw     = mw
-        m0 = pmt.magnitude_to_moment(mw)
-        super(MomentTensor, self).__init__(strike=strike, dip=dip, rake=rake, scalar_moment=m0)
+    #def __init__(self,mw=None,strike=None,dip=None,rake=None):
+    def __init__(self,**kwargs):
+
+        self._arg_strike = 0.
+        if 'strike' in kwargs.keys():
+            self._arg_strike = kwargs['strike']
+
+        self._arg_dip = 0.
+        if 'dip' in kwargs.keys():
+            self._arg_dip = kwargs['dip']
+
+        self._arg_rake = 0.
+        if 'rake' in kwargs.keys():
+            self._arg_rake = kwargs['rake']
+
+        super(MomentTensor, self).__init__(**kwargs) #pyrocko.moment_tensor.MomentTensor() 
+
+
+    @classmethod
+    def from_values(cls, values):
+        pyrocko_m = pmt.values_to_matrix(values) #little trick
+        return MomentTensor(m=pyrocko_m)
+    
 
 
     ######################################
@@ -129,9 +145,11 @@ class MomentTensor(RockoMT):
     def rake(self): # the rake as given by argument
         return self._arg_rake
 
+    '''
     @property
     def Mw(self): # the rake as given by argument
         return self._arg_Mw
+    '''
     
 
     ######################
@@ -149,12 +167,20 @@ class MomentTensor(RockoMT):
     def aki_dcm_moment(self): # same as for the harvard CMT
         return aki_dcm_magnitude_to_moment(self.magnitude)
 
+    #for some reason IPython doesn't recognize super() function
+    def m_east_north_up(self): 
+        return self._to_east_north_up.T * self._m * self._to_east_north_up
+
+    #for some reason IPython doesn't recognize super() function
+    def m6_east_north_up(self):
+        return pmt.to6(self.m_east_north_up())
+
 
     def aki_richards_unit_m6(self):
         """
           returns a [unit] moment-tensor array based on Aki & Richards Mw :-> M0
         """
-        return self.m6()/self.moment
+        return self.m6_east_north_up()/self.moment
 
 
     def aki_richards_m6(self):
