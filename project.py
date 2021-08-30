@@ -233,11 +233,17 @@ def make_fwd_project_dir(proj_base_name,
                 'USE_FORCE_POINT_SOURCE',
                 'MODEL',
                 'SAVE_MESH_FILES',
-                'USE_BINARY_FOR_SEISMOGRAMS']
-    
+                'USE_BINARY_FOR_SEISMOGRAMS',
+                'SAVE_SEISMOGRAMS_DISPLACEMENT',
+                'SAVE_SEISMOGRAMS_VELOCITY']
+
     #set solution type
     use_force_src = ForceSolutionHeader == proj_record_h.solution_cls
-    keys_vals_dict = dict(zip(par_keys,[1,False,use_force_src,'gll',False,True]))
+    if use_force_src:
+        keys_vals_dict = dict(zip(par_keys,[1,False,use_force_src,'gll',False,True,True,False]))
+    else:
+        keys_vals_dict = dict(zip(par_keys,[1,False,use_force_src,'gll',False,True,True,False]))
+        #keys_vals_dict = dict(zip(par_keys,[1,False,use_force_src,'gll',False,True,False,True]))
     par_lines = change_multiple_parameters_in_lines(par_lines,keys_vals_dict)
     
     

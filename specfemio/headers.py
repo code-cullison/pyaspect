@@ -494,7 +494,7 @@ class ForceSolutionHeader(SolutionHeader):
              date=None,
              f0=None,
              factor_fs=None,
-             comp_src_EX=None,
+             comp_src_EX=None, #FIXME: maybe comp_force_EX?
              comp_src_NY=None,
              comp_src_Zup=None,
              proj_id=0,
@@ -1031,7 +1031,7 @@ class CMTSolutionHeader(SolutionHeader):
 #TODO this is the actual record. I need the header, then make record.py
 class RecordHeader(Header):
 
-    def __init__(self, name=None,solutions_h=None,stations_h=None,proj_id=0,rid=0,iter_id=0):
+    def __init__(self,name=None,solutions_h=None,stations_h=None,proj_id=0,rid=0,iter_id=0,is_reciprocal=False):
         super(RecordHeader,self).__init__(name=name)
 
         l_solutions_h = solutions_h
@@ -1062,6 +1062,7 @@ class RecordHeader(Header):
         self['proj_id'] = proj_id
         self['rid']     = rid
         self['iter_id'] = iter_id
+        self['is_reciprocal'] = is_reciprocal
 
         #FIXME: see below. is this a good/safe trick?
         self._solution_mod_name = l_solutions_h[0].__module__
@@ -1458,6 +1459,14 @@ class RecordHeader(Header):
     @property
     def iter_id(self):
         return self['iter_id']
+    
+    @property
+    def is_reciprocal(self):
+        return self['is_reciprocal']
+    
+    @is_reciprocal.setter
+    def is_reciprocal(self, value):
+        self['is_reciprocal'] = value
     
     @property
     def solution_cls(self):
