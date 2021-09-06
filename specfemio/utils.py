@@ -114,12 +114,12 @@ def cmtsolution_2_str(cmts):
     cmtlines_str += 'latorUTM:      %s\n' %(str(cmts.lat_yc))
     cmtlines_str += 'longorUTM:     %s\n' %(str(cmts.lon_xc))
     cmtlines_str += 'depth:         %s\n' %(str(cmts.depth_km))
-    cmtlines_str += 'Mrr:           %s\n' %(str(cmts.mrr))
-    cmtlines_str += 'Mtt:           %s\n' %(str(cmts.mtt))
-    cmtlines_str += 'Mpp:           %s\n' %(str(cmts.mpp))
-    cmtlines_str += 'Mrt:           %s\n' %(str(cmts.mrt))
-    cmtlines_str += 'Mrp:           %s\n' %(str(cmts.mrp))
-    cmtlines_str += 'Mtp:           %s'   %(str(cmts.mtp))
+    cmtlines_str += 'Mrr:           %s\n' %(str(1e7*cmts.mrr)) #Nm to dyne-cm
+    cmtlines_str += 'Mtt:           %s\n' %(str(1e7*cmts.mtt)) #Nm to dyne-cm
+    cmtlines_str += 'Mpp:           %s\n' %(str(1e7*cmts.mpp)) #Nm to dyne-cm
+    cmtlines_str += 'Mrt:           %s\n' %(str(1e7*cmts.mrt)) #Nm to dyne-cm
+    cmtlines_str += 'Mrp:           %s\n' %(str(1e7*cmts.mrp)) #Nm to dyne-cm
+    cmtlines_str += 'Mtp:           %s'   %(str(1e7*cmts.mtp)) #Nm to dyne-cm
 
     return cmtlines_str
 
