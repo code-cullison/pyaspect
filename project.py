@@ -285,7 +285,7 @@ def make_fwd_project_dir(proj_base_name,
         sub_projdir_fqp = _make_proj_dir(sub_projdir_fqp,
                                          sub_pdir_name,
                                          pyutils_fqp=pyutils_fqp,
-                                         script_fqp=script_fqp,)
+                                         script_fqp=script_fqp)
     
 
         # Copy/Symlink MESH-default 
@@ -335,7 +335,8 @@ def make_fwd_project_dir(proj_base_name,
             rdir_name = 'run' + str(irdir+1).zfill(4)
             rundir_fqp = os.path.join(sub_projdir_fqp, rdir_name)
             syn_fqp = os.path.join(rundir_fqp, 'SYN')
-            rel_syn_fqp = os.path.relpath(syn_fqp,sub_proj_root_fqp)
+            #rel_syn_fqp = os.path.relpath(syn_fqp,sub_proj_root_fqp)
+            rel_syn_fqp = os.path.relpath(syn_fqp,sub_projdir_fqp)
             
 
             # reset the pandas.Multiindex to allow eid and sid filtering
