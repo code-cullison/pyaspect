@@ -497,8 +497,6 @@ def make_replicated_station_headers_from_src_list(l_srcs,l_recs):
 
 def make_grouped_reciprocal_station_headers_from_cmt_list(l_cmt,delta,full_cross=True):
 
-    #from pyaspect.specfemio.headers import StationHeader
-
     # Make the main stations
     l_vrecs = []
     for cmt in l_cmt:
@@ -531,7 +529,6 @@ def make_grouped_reciprocal_force_solution_triplet_headers_from_rec_list(l_rec):
     l_vsrcs = []
     for rec in l_rec:
 
-        #NOTE!!!! the depth is set to the NEGATIVE (makes it positive) due to sign convention
         new_s = ForceSolutionHeader(ename=f'Event-{str(rec.trid).zfill(4)}',
                                     lat_yc=rec.lat_yc,
                                     lon_xc=rec.lon_xc,
@@ -545,6 +542,36 @@ def make_grouped_reciprocal_force_solution_triplet_headers_from_rec_list(l_rec):
                                     comp_src_Zup=0,
                                     proj_id=0,
                                     eid=rec.trid,
+                                    sid=0)
+        l_vsrcs.append(new_s)
+
+    # Second: Make a force "triplets" used for calculationg moment tensor derivatives
+    return make_grouped_triplet_force_solution_headers(solutions=l_vsrcs)
+
+
+def make_grouped_reciprocal_force_solution_triplet_headers_from_xyz_coords(xyz):
+
+    # First we make a single virtual source per receiver
+    l_vsrcs = []
+    for i in range(len(xyz)):
+
+        lon_xc = xyz[i,0]
+        lat_yc = xyz[i,1]
+        depth  = xyz[i,2]
+
+        new_s = ForceSolutionHeader(ename=f'Event-{str(i).zfill(4)}',
+                                    lat_yc=lat_yc,
+                                    lon_xc=lon_xc,
+                                    depth=depth,
+                                    tshift=0.0,
+                                    date=datetime.datetime.now(),
+                                    f0=0.0,
+                                    factor_fs=1,
+                                    comp_src_EX=1,
+                                    comp_src_NY=0,
+                                    comp_src_Zup=0,
+                                    proj_id=0,
+                                    eid=i,
                                     sid=0)
         l_vsrcs.append(new_s)
 
