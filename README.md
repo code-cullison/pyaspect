@@ -1,1 +1,3 @@
-# This package is for automating workflows for use with SPECFEM3D_Cartesian.
+# PyAspect
+
+Is a package for automating forward and inverse workflows for SPECFEM3D_Cartesian.
