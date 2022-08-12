@@ -19,7 +19,6 @@ PyAspect is an open-source package to assist with automating SPECFEM3D_Cartesian
   - Primary author
   - Tester
 - La Ode Marzujriban Masfara:
-  - Secondary author
   - Co-designer of reciprocal moment tensor construction
   - Tester
 - Rhys Hawkins:
