@@ -10,3 +10,17 @@ PyAspect is an open-source package to assist with automating SPECFEM3D_Cartesian
 * Pythonic tools for creating "SPECFEM-compliant" source and receiver (station) files, including single or moment-tensor sources and multi-component receivers, and for creating headers (Python dictionaries) and header-records via pandas.DataFrame files for tracking both data and related "SPECFEM-compliant" source and receiver files. Because the headers are Python dictionaries, they can have an unlimited number of header fields (words) and lists of headers can be easily transformed into header-records (pandas.DataFrame files) which can be sorted independently of the data.
 * Tools for generating reciprocal sources and receivers from lists of standard sources and receivers or from a standard header-record.
 * Jupyter Notebook tools for using PyVista for 3D visualization of subsurface models (7D NumPy arrays) and source and receivers plots.
+* Note some features in this package are the same or similar to [gnam](https://github.com/code-cullison/gnam) because PyAspect diverged from [gnam](https://github.com/code-cullison/gnam) at an early stage.
+
+
+### Contributors
+
+- Thomas Cullison:
+  - Primary author
+  - Tester
+- La Ode Marzujriban Masfara:
+  - Secondary author
+  - Co-designer of reciprocal moment tensor construction
+  - Tester
+- Rhys Hawkins:
+  - Contributed to design discusstions
