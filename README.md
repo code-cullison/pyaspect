@@ -1,3 +1,5 @@
+[![DOI](https://zenodo.org/badge/386649496.svg)](https://zenodo.org/badge/latestdoi/386649496)
+
 # PyAspect
 
 PyAspect is an open-source package to assist with automating SPECFEM3D_Cartesian workflows for both waveform inversion and forward modeling.  (This package is still in development and a publication is in progress, so please site this GitHub repository URL if you use PyAspect for your research). 
