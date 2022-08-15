@@ -1,4 +1,5 @@
-[![DOI](https://zenodo.org/badge/386649496.svg)](https://zenodo.org/badge/latestdoi/386649496)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.6987368.svg)](https://doi.org/10.5281/zenodo.6987368)
+
 
 # PyAspect
 
